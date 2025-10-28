@@ -1,0 +1,171 @@
+{
+  "registry.access.redhat.com/ubi8/python-38": {
+    "status": "eol",
+    "eol_date": "2024-05-31",
+    "description": "Python 3.8 EOL - päivitä Python 3.9+",
+    "recommended": "registry.access.redhat.com/ubi8/python-39"
+  },
+  "registry.access.redhat.com/ubi8/python-39": {
+    "status": "eol",
+    "eol_date": "2025-10-01",
+    "description": "Python 3.9 EOL - päivitä Python 3.11+",
+    "recommended": "registry.access.redhat.com/ubi8/python-311"
+  },
+  "registry.access.redhat.com/ubi8/python-310": {
+    "status": "eol",
+    "eol_date": "2026-10-01",
+    "description": "Python 3.10 EOL - päivitä Python 3.11+",
+    "recommended": "registry.access.redhat.com/ubi8/python-311"
+  },
+  "registry.access.redhat.com/ubi8/python-311": {
+    "status": "supported",
+    "eol_date": "2027-10-01",
+    "description": "Python 3.11 tuettu"
+  },
+  "registry.access.redhat.com/ubi8/python-312": {
+    "status": "supported",
+    "eol_date": "2028-10-01",
+    "description": "Python 3.12 tuettu"
+  },
+  "node:14": {
+    "status": "eol",
+    "eol_date": "2023-04-30",
+    "description": "Node.js 14 EOL - päivitä Node.js 18+",
+    "recommended": "node:18"
+  },
+  "node:16": {
+    "status": "eol",
+    "eol_date": "2024-09-11",
+    "description": "Node.js 16 EOL - päivitä Node.js 18+",
+    "recommended": "node:18"
+  },
+  "node:18": {
+    "status": "supported",
+    "eol_date": "2025-04-30",
+    "description": "Node.js 18 tuettu"
+  },
+  "node:20": {
+    "status": "supported",
+    "eol_date": "2026-04-30",
+    "description": "Node.js 20 tuettu"
+  },
+  "node:22": {
+    "status": "supported",
+    "eol_date": "2027-04-30",
+    "description": "Node.js 22 tuettu"
+  },
+  "php:7.4": {
+    "status": "eol",
+    "eol_date": "2022-11-28",
+    "description": "PHP 7.4 EOL - päivitä PHP 8.1+",
+    "recommended": "php:8.1"
+  },
+  "php:8.0": {
+    "status": "eol",
+    "eol_date": "2023-11-26",
+    "description": "PHP 8.0 EOL - päivitä PHP 8.1+",
+    "recommended": "php:8.1"
+  },
+  "php:8.1": {
+    "status": "supported",
+    "eol_date": "2025-11-25",
+    "description": "PHP 8.1 tuettu"
+  },
+  "php:8.2": {
+    "status": "supported",
+    "eol_date": "2026-11-25",
+    "description": "PHP 8.2 tuettu"
+  },
+  "php:8.3": {
+    "status": "supported",
+    "eol_date": "2027-11-25",
+    "description": "PHP 8.3 tuettu"
+  },
+  "alpine:3.14": {
+    "status": "eol",
+    "eol_date": "2024-05-01",
+    "description": "Alpine 3.14 EOL - päivitä Alpine 3.18+",
+    "recommended": "alpine:3.18"
+  },
+  "alpine:3.15": {
+    "status": "eol",
+    "eol_date": "2024-11-01",
+    "description": "Alpine 3.15 EOL - päivitä Alpine 3.18+",
+    "recommended": "alpine:3.18"
+  },
+  "alpine:3.16": {
+    "status": "eol",
+    "eol_date": "2025-05-01",
+    "description": "Alpine 3.16 EOL - päivitä Alpine 3.18+",
+    "recommended": "alpine:3.18"
+  },
+  "alpine:3.17": {
+    "status": "eol",
+    "eol_date": "2025-11-01",
+    "description": "Alpine 3.17 EOL - päivitä Alpine 3.18+",
+    "recommended": "alpine:3.18"
+  },
+  "alpine:3.18": {
+    "status": "supported",
+    "eol_date": "2026-05-01",
+    "description": "Alpine 3.18 tuettu"
+  },
+  "alpine:3.19": {
+    "status": "supported",
+    "eol_date": "2026-11-01",
+    "description": "Alpine 3.19 tuettu"
+  },
+  "ubuntu:18.04": {
+    "status": "eol",
+    "eol_date": "2023-04-30",
+    "description": "Ubuntu 18.04 EOL - päivitä Ubuntu 22.04+",
+    "recommended": "ubuntu:22.04"
+  },
+  "ubuntu:20.04": {
+    "status": "supported",
+    "eol_date": "2025-04-30",
+    "description": "Ubuntu 20.04 tuettu"
+  },
+  "ubuntu:22.04": {
+    "status": "supported",
+    "eol_date": "2027-04-30",
+    "description": "Ubuntu 22.04 tuettu"
+  },
+  "ubuntu:24.04": {
+    "status": "supported",
+    "eol_date": "2029-04-30",
+    "description": "Ubuntu 24.04 tuettu"
+  },
+  "centos:7": {
+    "status": "eol",
+    "eol_date": "2024-06-30",
+    "description": "CentOS 7 EOL - päivitä Rocky Linux 8+ tai AlmaLinux 8+",
+    "recommended": "rockylinux:8"
+  },
+  "centos:8": {
+    "status": "eol",
+    "eol_date": "2021-12-31",
+    "description": "CentOS 8 EOL - päivitä Rocky Linux 8+ tai AlmaLinux 8+",
+    "recommended": "rockylinux:8"
+  },
+  "rockylinux:8": {
+    "status": "supported",
+    "eol_date": "2029-05-31",
+    "description": "Rocky Linux 8 tuettu"
+  },
+  "rockylinux:9": {
+    "status": "supported",
+    "eol_date": "2032-05-31",
+    "description": "Rocky Linux 9 tuettu"
+  },
+  "almalinux:8": {
+    "status": "supported",
+    "eol_date": "2029-05-31",
+    "description": "AlmaLinux 8 tuettu"
+  },
+  "almalinux:9": {
+    "status": "supported",
+    "eol_date": "2032-05-31",
+    "description": "AlmaLinux 9 tuettu"
+  }
+}

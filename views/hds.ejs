@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html class="light" lang="fi">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0b73da",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <script>
+    function refreshData() {
+        const refreshBtn = document.getElementById("refresh-btn");
+        const refreshStatus = document.getElementById("refresh-status");
+        
+        refreshBtn.classList.add("hidden");
+        refreshStatus.classList.remove("hidden");
+        
+        const currentPath = window.location.pathname;
+        window.location.href = currentPath + "?refresh=true";
+    }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
+<div class="flex min-h-screen">
+<aside class="w-64 bg-white dark:bg-background-dark border-r border-slate-200 dark:border-slate-800 p-4 flex flex-col justify-between">
+<div>
+<div class="flex justify-center mb-8 px-4">
+<img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNzggMzYiIHRpdGxlPSJIZWxzaW5naW4ga2F1cHVua2kiIHJvbGU9ImltZyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoCiAgICAgICAgZD0iTTc1Ljc1MyAyLjI1MXYyMC43YzAgMy45NS0zLjI3NSA3LjE3OC03LjMxIDcuMTc4aC0yMi4yNmMtMi42NzQgMC01LjIwNS45Ni03LjE4MyAyLjczOWExMC43NDkgMTAuNzQ5IDAgMDAtNy4xODMtMi43NEg5LjUwOWMtNC4wMDMgMC03LjI0Ny0zLjIxLTcuMjQ3LTcuMTc3VjIuMjVoNzMuNDkxek00MC4xODcgMzQuODM1YTguNDcgOC40NyAwIDAxNi4wMTItMi40NzFoMjIuMjQ1YzUuMjY4IDAgOS41NTYtNC4yMTkgOS41NTYtOS40MTNWMEgwdjIyLjkzNWMwIDUuMTk0IDQuMjU2IDkuNDEzIDkuNTA5IDkuNDEzaDIyLjMwOGMyLjI2MyAwIDQuMzk4Ljg4MiA2LjAxMiAyLjQ3MUwzOS4wMTYgMzZsMS4xNy0xLjE2NXoiCiAgICAgICAgZmlsbD0iY3VycmVudENvbG9yIiAvPgogICAgPHBhdGgKICAgICAgICBkPSJNNjcuNTIyIDExLjY3NmMwIC42ODEtLjU1NiAxLjE3Ny0xLjI1NSAxLjE3Ny0uNyAwLTEuMjU1LS40OTYtMS4yNTUtMS4xNzcgMC0uNjgyLjU1Ni0xLjE3OCAxLjI1NS0xLjE3OC43LS4wMyAxLjI1NS40NjUgMS4yNTUgMS4xNjh6bS0yLjM1MiA5LjYyMmgyLjE3OHYtNy41NDZINjUuMTd2Ny41NDZ6bS0zLjkwOS00LjU1NmwyLjg0NSA0LjU1NmgtMi4zNjhsLTEuOTA3LTMuMDIyLTEuMDMzIDEuMjcxdjEuNzVoLTIuMTYxVjEwLjQ1M2gyLjE2djUuMDA0YzAtLjkzLS4xMSAxLjg2LS4xMSAxLjg2aC4wNDczLjUwOS0uODIxLjkzOC0xLjQxbDEuNjUzLTIuMTU0aDIuNTQybC0yLjYwNiAyLjk5em0tNi44MTctLjI3OGMwLTEuODc1LS45MzgtMi44OTgtMi40MzItMi44OTgtMS4yNzEgMC0xLjkzOS43MjgtMi4zMiAxLjQyNmgtLjA0OGwuMTEyLTEuMjRoLTIuMTYydjcuNTQ2aDIuMTYyVjE2LjgyYzAtLjg2OC41MjQtMS40NzIgMS4zMzUtMS40NzIuODEgMCAxLjE2LjUyNyAxLjE2IDEuNTM0djQuNDE2aDIuMTc3bC4wMTYtNC44MzR6bS04LjkzMS00Ljc4OGMwIC42ODEtLjU1NyAxLjE3Ny0xLjI1NiAxLjE3Ny0uNyAwLTEuMjU1LS40OTYtMS4yNTUtMS4xNzcgMC0uNjgyLjU1Ni0xLjE3OCAxLjI1NS0xLjE3OC43MTUtLjAzIDEuMjU2LjQ2NSAxLjI1NiAxLjE3OHptLTIuMzUyIDkuNjIyaDIuMTc3di03LjU0Nkg0My4xNnY3LjU0NnptLTMuNzUtMi4xMDdjMC0uNjA5LS44NTktLjcyOS0xLjg2LTEuMDA4LTEuMTYtLjI5NC0yLjYyMi0uODY3LTIuNjIyLTIuMzA4IDAtMS40MjYgMS4zOTgtMi4zMjQgMy4wNTEtMi4zMjQgMS41NDEgMCAyLjk1Ni43MTIgMy41NDQgMS43MmwtMS44NiAxLjAyMmMtLjE5LS42NjYtLjc2Mi0xLjE5My0xLjYyLTEuMTkzLS41NTcgMC0xLjAxOC4yMzItMS4wMTguNjgyIDAgLjU3MyAxLjAxOC42MzUgMi4xNjIuOTkxIDEuMjA4LjM3MiAyLjMyLjkxNSAyLjMyIDIuMjk0IDAgMS41MTgtMS40NDYgMi40MTctMy4xMTUgMi40MTctMS44MTEgMC0zLjI0Mi0uNzQ0LTMuODc3LTEuOTUybDEuODktMS4wMzljLjI0LjgyMi45MjIgMS40NDEgMS45NTUgMS40NDEuNjIgMCAxLjA1LS4yNDggMS4wNS0uNzQzem0tNi44ODItOC42NzdoLTIuMTc3djguNjkyYzAgLjc3NS4xNzUgMS4zNDguNTA5IDEuNzA1LjM1LjM1Ni44OS41MjYgMS42MzYuNTI2LjI1NSAwIC41MjUtLjAzLjc4LS4wNzcuMjctLjA2Mi40NzYtLjE0LjY1LS4yMzNsLjE5MS0xLjQyNWEyLjA3IDIuMDcgMCAwMS0uNDYuMTI0Yy0uMTI4LjAzLS4yODcuMDMtLjQ2MS4wMy0uMjg2IDAtLjQxNC0uMDc3LS41MDktLjIxNi0uMTExLS4xNC0uMTU5LS4zODctLjE1OS0uNzQ0di04LjM4MnptLTcuMjQ2IDQuNTdjLS43OTUgMC0xLjQ0Ni41NTgtMS42MjEgMS41ODFoMy4wNWMuMDE3LS44OTktLjU4Ny0xLjU4LTEuNDMtMS41OHptMy4zNTMgMy4wMDdIMjMuNjNjLjA5NSAxLjIyNC43OTQgMS44MjggMS43IDEuODI4LjgxIDAgMS4zNjctLjUyNyAxLjQ5NC0xLjI0bDEuODI4IDEuMDA3Yy0uNTQuOTYxLTEuNyAxLjc5OC0zLjMyMiAxLjc5OC0yLjE2IDAtMy43NS0xLjQ3Mi0zLjc1LTMuOTUxIDAtMi40NjQgMS42Mi0zLjk1MSAzLjcwMy0zLjk1MSAyLjA4MSAwIDMuNDY0IDEuNDQgMy40NjQgMy40ODYtLjAxNi42MDQtLjExMSAxLjAyMy0uMTExIDEuMDIzem0tMTEuMDc3IDMuMjA3aDIuMjU3VjEwLjkxNmgtMi4yNTd2NC4xMDdoLTQuMjQzdi00LjA5MUgxMS4wNnYxMC4zNjZoMi4yNTZ2LTQuMjkyaDQuMjQzdjQuMjkyeiIKICAgICAgICBmaWxsPSJjdXJyZW50Q29sb3IiIC8+Cjwvc3ZnPg==" alt="Helsingin kaupunki" class="w-full h-auto max-w-full">
+</div>
+<div class="flex flex-col mb-8">
+<h1 class="text-[#0d141c] dark:text-white text-base font-medium leading-normal">Sovellusportfolio</h1>
+<p class="text-[#49739c] dark:text-slate-400 text-sm font-normal leading-normal">GitHub</p>
+</div>
+<nav class="flex flex-col gap-2">
+<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/">
+<span class="material-symbols-outlined">dashboard</span>
+<p class="text-sm font-medium">Etusivu</p>
+</a>
+<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/dockerfile">
+<i class="fab fa-docker"></i>
+<p class="text-sm font-medium">Dockerfile</p>
+</a>
+<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/django">
+<i class="fab fa-python"></i>
+<p class="text-sm font-medium">Django</p>
+</a>
+<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/react">
+<i class="fab fa-react"></i>
+<p class="text-sm font-medium">React</p>
+</a>
+<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/drupal">
+<i class="fab fa-drupal"></i>
+<p class="text-sm font-medium">Drupal</p>
+</a>
+<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/dependabot">
+<i class="fas fa-shield-alt"></i>
+<p class="text-sm font-medium">Dependabot</p>
+</a>
+<a class="flex items-center gap-4 px-3 py-2 rounded-lg bg-primary/10 text-primary" href="/hds">
+<i class="fas fa-palette"></i>
+<p class="text-sm font-medium">HDS</p>
+</a>
+</nav>
+</div>
+<div class="mt-auto">
+<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/settings">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-sm font-medium">Asetukset</p>
+</a>
+</div>
+</aside>
+
+<main class="flex-1 overflow-y-auto">
+<div class="p-8">
+<!-- Header -->
+<div class="flex items-center justify-between mb-8">
+<div class="flex items-center gap-4">
+<i class="fas fa-palette text-4xl text-primary"></i>
+<div>
+<h1 class="text-3xl font-bold text-[#0d141c] dark:text-white">Helsinki Design System</h1>
+<p class="text-slate-500 dark:text-slate-400 mt-1">HDS-käytön yleiskatsaus</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button id="refresh-btn" onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-sm">refresh</span>
+Päivitä tiedot
+</button>
+<div id="refresh-status" class="hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500">
+<span class="material-symbols-outlined text-sm animate-spin">sync</span>
+Ladataan...
+</div>
+</div>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<div class="flex flex-col gap-2 rounded-xl p-6 border border-purple-200 dark:border-purple-900 bg-purple-50 dark:bg-purple-900/10">
+<p class="text-base font-medium text-[#0d141c] dark:text-slate-300">HDS-sovellukset</p>
+<p class="text-3xl font-bold text-purple-600"><%= stats.hdsRepos %></p>
+<p class="text-sm font-medium text-purple-600">Yhteensä</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+<p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Frontend-repositoryt</p>
+<p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.frontendRepos %></p>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Kaikki frontend-repot</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+<p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Eri versioita</p>
+<p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.totalVersions %></p>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">HDS-versioita</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+<p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Eri paketteja</p>
+<p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.totalPackages %></p>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">HDS-paketteja</p>
+</div>
+</div>
+
+<!-- Package Statistics -->
+<% if (packageStats && packageStats.length > 0) { %>
+<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-8">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-2xl text-purple-600">inventory_2</span>
+<h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">HDS-pakettien käyttö</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<% packageStats.forEach(function(pkg) { %>
+<div class="flex flex-col gap-2 p-4 rounded-lg border border-purple-200 dark:border-purple-900 bg-purple-50 dark:bg-purple-900/10">
+<div class="flex items-center justify-between">
+<span class="text-lg font-bold text-[#0d141c] dark:text-white font-mono"><%= pkg.packageName %></span>
+</div>
+<p class="text-3xl font-bold text-purple-600"><%= pkg.count %></p>
+<p class="text-sm text-slate-500 dark:text-slate-400">sovellusta</p>
+</div>
+<% }); %>
+</div>
+</div>
+<% } %>
+
+<!-- Version Statistics -->
+<% if (versionStats && versionStats.length > 0) { %>
+<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-8">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-2xl text-primary">bar_chart</span>
+<h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">HDS-versioiden jakauma</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<% versionStats.forEach(function(version) { %>
+<div class="flex flex-col gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+<div class="flex items-center justify-between">
+<span class="text-lg font-bold text-[#0d141c] dark:text-white font-mono"><%= version.version %></span>
+</div>
+<p class="text-3xl font-bold text-primary"><%= version.count %></p>
+<p class="text-sm text-slate-500 dark:text-slate-400">sovellusta</p>
+</div>
+<% }); %>
+</div>
+</div>
+<% } %>
+
+<!-- HDS Repositories List -->
+<div class="rounded-xl border border-purple-200 dark:border-purple-900 bg-purple-50 dark:bg-purple-900/10 p-6">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-2xl text-purple-600">inventory_2</span>
+<h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">HDS-sovellukset</h2>
+</div>
+<span class="text-sm text-purple-600 font-medium"><%= hdsRepos.length %> sovellusta</span>
+</div>
+
+<% if (hdsRepos.length === 0) { %>
+<div class="text-center py-12 bg-white dark:bg-slate-900 rounded-lg">
+<span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-600">inventory</span>
+<h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400 mt-4">Ei HDS-sovelluksia</h3>
+<p class="text-slate-400 dark:text-slate-500 mt-2">Yhtään Helsinki Design System -sovellusta ei löytynyt.</p>
+</div>
+<% } else { %>
+<div class="overflow-x-auto bg-white dark:bg-slate-900 rounded-lg">
+<table class="w-full text-left text-sm">
+<thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800">
+<tr>
+<th class="px-6 py-3" scope="col">Repository</th>
+<th class="px-6 py-3" scope="col">Kieli</th>
+<th class="px-6 py-3" scope="col">HDS-paketit</th>
+<th class="px-6 py-3" scope="col">Päivitetty</th>
+</tr>
+</thead>
+<tbody>
+<% hdsRepos.forEach(function(repo) { %>
+<tr class="border-b dark:border-slate-800 hover:bg-purple-50 dark:hover:bg-purple-900/10">
+<th class="px-6 py-4 font-medium text-[#0d141c] dark:text-white whitespace-nowrap" scope="row">
+<a class="hover:text-primary flex items-center gap-2" href="<%= repo.html_url %>" target="_blank" rel="noopener">
+<i class="fab fa-github"></i>
+<%= repo.name %>
+</a>
+</th>
+<td class="px-6 py-4">
+<% if (repo.language) { %>
+<span class="inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium" style="background-color: <%= getLanguageColor(repo.language) %>20; color: <%= getLanguageColor(repo.language) %>;">
+<span class="w-2 h-2 rounded-full" style="background-color: <%= getLanguageColor(repo.language) %>;"></span>
+<%= repo.language %>
+</span>
+<% } else { %>
+<span class="text-slate-400">-</span>
+<% } %>
+</td>
+<td class="px-6 py-4">
+<div class="flex flex-wrap gap-2">
+<% Object.entries(repo.hds_data.hds_packages || {}).forEach(([pkg, version]) => { %>
+<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-200 font-mono">
+<%= pkg %>: <%= version %>
+</span>
+<% }); %>
+</div>
+</td>
+<td class="px-6 py-4 text-slate-500 dark:text-slate-400">
+<%= new Date(repo.updated_at).toLocaleDateString('fi-FI') %>
+</td>
+</tr>
+<% }); %>
+</tbody>
+</table>
+</div>
+<% } %>
+</div>
+</div>
+</main>
+</div>
+</body>
+</html>

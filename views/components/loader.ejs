@@ -1,0 +1,217 @@
+<!-- Loading spinner component -->
+<div id="page-loader" class="fixed inset-0 bg-white dark:bg-slate-900 z-50 flex items-center justify-center" style="display: none;">
+  <div class="text-center">
+    <!-- Animated logo/icon -->
+    <div class="mb-8">
+      <div class="relative w-20 h-20 mx-auto">
+        <!-- Outer rotating ring -->
+        <div class="absolute inset-0 border-4 border-blue-200 dark:border-blue-800 rounded-full animate-spin"></div>
+        <!-- Inner pulsing circle -->
+        <div class="absolute inset-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full animate-pulse flex items-center justify-center">
+          <span class="text-white font-bold text-xl">H</span>
+        </div>
+        <!-- Center dot -->
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full animate-ping"></div>
+      </div>
+    </div>
+    
+    <!-- Loading text with typewriter effect -->
+    <div class="mb-8">
+      <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-3">
+        <span class="inline-block animate-pulse">Ladataan</span>
+        <span class="inline-block animate-bounce" style="animation-delay: 0.2s;">.</span>
+        <span class="inline-block animate-bounce" style="animation-delay: 0.4s;">.</span>
+        <span class="inline-block animate-bounce" style="animation-delay: 0.6s;">.</span>
+      </h3>
+      <p class="text-lg text-slate-600 dark:text-slate-400" id="loading-text">Haetaan tietoja GitHubista</p>
+    </div>
+    
+    <!-- Animated progress bar -->
+    <div class="w-80 mx-auto mb-6">
+      <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
+        <div id="loading-progress" class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 ease-out relative" style="width: 0%">
+          <!-- Shimmer effect -->
+          <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
+        </div>
+      </div>
+      <div class="text-right mt-2">
+        <span id="progress-text" class="text-sm font-medium text-slate-600 dark:text-slate-400">0%</span>
+      </div>
+    </div>
+    
+    <!-- Animated loading dots -->
+    <div class="flex justify-center space-x-2">
+      <div class="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0ms;"></div>
+      <div class="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 150ms;"></div>
+      <div class="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 300ms;"></div>
+    </div>
+    
+    <!-- Loading tips -->
+    <div class="mt-8 text-sm text-slate-500 dark:text-slate-400">
+      <p id="loading-tip">💡 Vinkki: Voit selata sivuja samalla kun tietoja ladataan</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Enhanced Loader functionality
+class PageLoader {
+  constructor() {
+    this.loader = document.getElementById('page-loader');
+    this.progressBar = document.getElementById('loading-progress');
+    this.progressText = document.getElementById('progress-text');
+    this.loadingText = document.getElementById('loading-text');
+    this.loadingTip = document.getElementById('loading-tip');
+    this.progress = 0;
+    this.messages = [
+      'Haetaan tietoja GitHubista',
+      'Käsitellään repositorytietoja',
+      'Analysoidaan framework-versioita',
+      'Lasketaan tilastoja',
+      'Valmistellaan sivua'
+    ];
+    this.tips = [
+      '💡 Vinkki: Voit selata sivuja samalla kun tietoja ladataan',
+      '🔍 GitHub API:n rajoitukset voivat hidastaa latausta',
+      '📊 Tilastot lasketaan reaaliajassa',
+      '⚡ Cache nopeuttaa toistuvia haku',
+      '🎯 Sivut latautuvat optimaalisessa järjestyksessä'
+    ];
+    this.currentMessageIndex = 0;
+    this.currentTipIndex = 0;
+  }
+
+  show() {
+    if (this.loader) {
+      this.loader.style.display = 'flex';
+      this.startProgress();
+      this.startMessageRotation();
+      this.startTipRotation();
+    }
+  }
+
+  hide() {
+    if (this.loader) {
+      // Complete progress bar
+      this.updateProgress(100);
+      
+      // Hide after a short delay
+      setTimeout(() => {
+        this.loader.style.display = 'none';
+        this.reset();
+      }, 800);
+    }
+  }
+
+  startProgress() {
+    this.progress = 0;
+    this.updateProgress(0);
+    
+    // Simulate realistic progress
+    const interval = setInterval(() => {
+      if (this.progress < 85) {
+        // Slower progress at the beginning, faster in the middle
+        const increment = this.progress < 30 ? Math.random() * 8 : 
+                         this.progress < 60 ? Math.random() * 12 : 
+                         Math.random() * 6;
+        this.progress += increment;
+        this.updateProgress(Math.min(this.progress, 85));
+      } else {
+        clearInterval(interval);
+      }
+    }, 300);
+  }
+
+  updateProgress(percentage) {
+    if (this.progressBar) {
+      this.progressBar.style.width = `${percentage}%`;
+    }
+    if (this.progressText) {
+      this.progressText.textContent = `${Math.round(percentage)}%`;
+    }
+  }
+
+  startMessageRotation() {
+    this.currentMessageIndex = 0;
+    this.updateMessage();
+    
+    const interval = setInterval(() => {
+      this.currentMessageIndex = (this.currentMessageIndex + 1) % this.messages.length;
+      this.updateMessage();
+    }, 2500);
+    
+    this.messageInterval = interval;
+  }
+
+  startTipRotation() {
+    this.currentTipIndex = 0;
+    this.updateTip();
+    
+    const interval = setInterval(() => {
+      this.currentTipIndex = (this.currentTipIndex + 1) % this.tips.length;
+      this.updateTip();
+    }, 4000);
+    
+    this.tipInterval = interval;
+  }
+
+  updateMessage() {
+    if (this.loadingText && this.messages[this.currentMessageIndex]) {
+      this.loadingText.textContent = this.messages[this.currentMessageIndex];
+    }
+  }
+
+  updateTip() {
+    if (this.loadingTip && this.tips[this.currentTipIndex]) {
+      this.loadingTip.textContent = this.tips[this.currentTipIndex];
+    }
+  }
+
+  reset() {
+    this.progress = 0;
+    this.currentMessageIndex = 0;
+    this.currentTipIndex = 0;
+    if (this.messageInterval) {
+      clearInterval(this.messageInterval);
+    }
+    if (this.tipInterval) {
+      clearInterval(this.tipInterval);
+    }
+  }
+}
+
+// Global loader instance
+window.pageLoader = new PageLoader();
+
+// Show loader immediately when page starts loading
+document.addEventListener('DOMContentLoaded', function() {
+  // Show loader for a minimum time for better UX
+  setTimeout(() => {
+    if (window.pageLoader) {
+      window.pageLoader.show();
+    }
+  }, 100);
+  
+  // Hide loader after page is fully loaded
+  window.addEventListener('load', function() {
+    setTimeout(() => {
+      if (window.pageLoader) {
+        window.pageLoader.hide();
+      }
+    }, 1500); // Minimum loading time for better UX
+  });
+});
+
+// Show loader on navigation
+document.addEventListener('click', function(e) {
+  const link = e.target.closest('a[href]');
+  if (link && link.hostname === window.location.hostname) {
+    // Only show loader for internal navigation
+    setTimeout(() => {
+      if (window.pageLoader) {
+        window.pageLoader.show();
+      }
+    }, 100);
+  }
+});
+</script>
