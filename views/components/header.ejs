@@ -1,0 +1,39 @@
+<% 
+// Header component with title, description, and optional refresh button
+const headerTitle = typeof title !== 'undefined' ? title : 'Sivu';
+const headerDescription = typeof description !== 'undefined' ? description : '';
+const showRefresh = typeof showRefresh !== 'undefined' ? showRefresh : false;
+%>
+<div class="flex flex-wrap justify-between gap-3 mb-8 p-8 pb-0">
+    <div class="flex min-w-72 flex-col gap-2">
+        <h1 class="text-4xl font-black leading-tight tracking-[-0.033em] text-[#0d141c] dark:text-white"><%= headerTitle %></h1>
+        <% if (headerDescription) { %>
+        <p class="text-base font-normal leading-normal text-slate-500 dark:text-slate-400"><%= headerDescription %></p>
+        <% } %>
+    </div>
+    <% if (showRefresh) { %>
+    <div class="flex items-center gap-3">
+        <button id="refresh-btn" onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+            <span class="material-symbols-outlined text-sm">refresh</span>
+            <span class="text-sm font-medium">Päivitä tiedot</span>
+        </button>
+        <div id="refresh-status" class="hidden flex items-center gap-2 text-sm text-slate-500">
+            <span class="material-symbols-outlined animate-spin">refresh</span>
+            <span>Päivitetään...</span>
+        </div>
+    </div>
+    <% } %>
+</div>
+<script>
+function refreshData() {
+    const refreshBtn = document.getElementById("refresh-btn");
+    const refreshStatus = document.getElementById("refresh-status");
+    
+    if (refreshBtn) refreshBtn.classList.add("hidden");
+    if (refreshStatus) refreshStatus.classList.remove("hidden");
+    
+    const currentPath = window.location.pathname;
+    window.location.href = currentPath + "?refresh=true";
+}
+</script>
+

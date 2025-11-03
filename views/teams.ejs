@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html class="light" lang="fi">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0b73da",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <script>
+    function refreshData() {
+        const refreshBtn = document.getElementById("refresh-btn");
+        const refreshStatus = document.getElementById("refresh-status");
+        
+        if (refreshBtn) refreshBtn.classList.add("hidden");
+        if (refreshStatus) refreshStatus.classList.remove("hidden");
+        
+        const currentPath = window.location.pathname;
+        window.location.href = currentPath + "?refresh=true";
+    }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
+<div class="flex min-h-screen">
+  <%- include("components/sidebar") %>
+  <main class="flex-1 overflow-y-auto">
+    <div class="p-8">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-4">
+          <span class="material-symbols-outlined text-4xl text-primary">groups</span>
+          <div>
+            <h1 class="text-3xl font-bold text-[#0d141c] dark:text-white">Tiimit</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1">Organisaation tiimit ja jäsenet</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="refresh-btn" onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-sm">refresh</span>
+            Päivitä tiedot
+          </button>
+          <div id="refresh-status" class="hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500">
+            <span class="material-symbols-outlined text-sm animate-spin">sync</span>
+            Ladataan...
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Tiimit</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.totalTeams || 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhteensä</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Tiimit repositoryillä</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.teamsWithRepos || 0 %></p>
+          <p class="text-sm font-medium text-green-600">Aktiiviset</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Jäsenet</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.totalMembers || 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhteensä</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Keskimäärin jäseniä</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.averageMembersPerTeam || 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Per tiimi</p>
+        </div>
+      </div>
+
+      <!-- Teams List -->
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-2xl text-primary">inventory_2</span>
+            <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Tiimit</h2>
+          </div>
+          <span class="text-sm text-slate-500 dark:text-slate-400"><%= teams.length %> tiimiä</span>
+        </div>
+
+        <% if (teams.length === 0) { %>
+        <div class="text-center py-12">
+          <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-600">groups</span>
+          <h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400 mt-4">Ei tiimejä</h3>
+          <p class="text-slate-400 dark:text-slate-500 mt-2">Yhtään tiimiä ei löytynyt organisaatiosta.</p>
+        </div>
+        <% } else { %>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <% teams.forEach(function(team) { %>
+          <div class="flex flex-col gap-3 p-4 rounded-lg border <%= team.hasRepos ? 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50' %> hover:shadow-lg transition-shadow">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-2xl text-primary">groups</span>
+                <div>
+                  <h3 class="font-semibold text-[#0d141c] dark:text-white"><%= team.name || team.slug %></h3>
+                  <% if (team.description) { %>
+                  <p class="text-sm text-slate-500 dark:text-slate-400"><%= team.description.substring(0, 50) %><%= team.description.length > 50 ? '...' : '' %></p>
+                  <% } %>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 text-sm">
+              <div class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm text-slate-500">person</span>
+                <span class="text-slate-600 dark:text-slate-400"><%= team.memberCount || 0 %> jäsentä</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm text-slate-500">folder</span>
+                <span class="text-slate-600 dark:text-slate-400"><%= team.repoCount || 0 %> repositoryä</span>
+              </div>
+            </div>
+            <% if (team.html_url) { %>
+            <a href="<%= team.html_url %>" target="_blank" rel="noopener" class="text-sm text-primary hover:underline flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">open_in_new</span>
+              Avaa GitHubissa
+            </a>
+            <% } %>
+          </div>
+          <% }); %>
+        </div>
+        <% } %>
+
+        <!-- Teams Table -->
+        <% if (teams.length > 0) { %>
+        <div class="overflow-x-auto mt-6">
+          <table class="w-full text-left text-sm">
+            <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800">
+              <tr>
+                <th class="px-6 py-3" scope="col">Tiimi</th>
+                <th class="px-6 py-3" scope="col">Jäsenet</th>
+                <th class="px-6 py-3" scope="col">Repositoryt</th>
+                <th class="px-6 py-3" scope="col">Kuvaus</th>
+                <th class="px-6 py-3" scope="col">Toiminnot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% teams.forEach(function(team) { %>
+              <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <th class="px-6 py-4 font-medium text-[#0d141c] dark:text-white whitespace-nowrap" scope="row">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">groups</span>
+                    <%= team.name || team.slug %>
+                  </div>
+                </th>
+                <td class="px-6 py-4">
+                  <span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                    <span class="material-symbols-outlined text-sm">person</span>
+                    <%= team.memberCount || 0 %>
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium <%= team.hasRepos ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300' %>">
+                    <span class="material-symbols-outlined text-sm">folder</span>
+                    <%= team.repoCount || 0 %>
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-slate-500 dark:text-slate-400">
+                  <%= team.description || '-' %>
+                </td>
+                <td class="px-6 py-4">
+                  <% if (team.html_url) { %>
+                  <a href="<%= team.html_url %>" target="_blank" rel="noopener" class="text-primary hover:underline text-sm">
+                    Avaa
+                  </a>
+                  <% } else { %>
+                  <span class="text-slate-400">-</span>
+                  <% } %>
+                </td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('components/loader') %>
+</body>
+</html>

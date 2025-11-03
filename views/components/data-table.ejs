@@ -1,0 +1,63 @@
+<% 
+// Data table component
+// Usage: <%- include('components/data-table', { 
+//   title: 'Table Title', 
+//   columns: [{ key: 'name', label: 'Name' }],
+//   data: [{ name: 'Test' }],
+//   emptyMessage: 'No data'
+// }) %>
+const tableTitle = typeof title !== 'undefined' ? title : 'Taulukko';
+const tableColumns = typeof columns !== 'undefined' ? columns : [];
+const tableData = typeof data !== 'undefined' ? data : [];
+const emptyMessage = typeof emptyMessage !== 'undefined' ? emptyMessage : 'Ei dataa.';
+const tableActions = typeof actions !== 'undefined' ? actions : '';
+%>
+<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-8">
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-2xl text-primary">table_chart</span>
+            <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white"><%= tableTitle %></h2>
+        </div>
+        <% if (tableActions) { %>
+        <%- tableActions %>
+        <% } else { %>
+        <span class="text-sm text-slate-500 dark:text-slate-400"><%= tableData.length %> riviä</span>
+        <% } %>
+    </div>
+
+    <% if (tableData.length === 0) { %>
+    <div class="text-center py-12">
+        <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-600">inbox</span>
+        <h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400 mt-4">Ei dataa</h3>
+        <p class="text-slate-400 dark:text-slate-500 mt-2"><%= emptyMessage %></p>
+    </div>
+    <% } else { %>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+            <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800">
+                <tr>
+                    <% tableColumns.forEach(function(column) { %>
+                    <th class="px-6 py-3" scope="col"><%= column.label %></th>
+                    <% }); %>
+                </tr>
+            </thead>
+            <tbody>
+                <% tableData.forEach(function(row, index) { %>
+                <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <% tableColumns.forEach(function(column) { %>
+                    <td class="px-6 py-4">
+                        <% if (typeof column.render === 'function') { %>
+                        <%- column.render(row, index) %>
+                        <% } else { %>
+                        <%= typeof row[column.key] !== 'undefined' ? row[column.key] : '-' %>
+                        <% } %>
+                    </td>
+                    <% }); %>
+                </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+    <% } %>
+</div>
+

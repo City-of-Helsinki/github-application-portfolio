@@ -5,25 +5,13 @@ const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
 const csv = require('csv-parser');
 require('dotenv').config();
-
-// Load Django EOL data
-let djangoEOLData = {};
-try {
-  const eolData = fs.readFileSync(path.join(__dirname, 'django-eol.json'), 'utf8');
-  djangoEOLData = JSON.parse(eolData);
-} catch (error) {
-  console.error('❌ Virhe Django EOL-tietojen latauksessa:', error.message);
-}
-
-// Load Docker EOL data
-let dockerEOLData = {};
-try {
-  const dockerEOLFile = fs.readFileSync(path.join(__dirname, 'docker-eol.json'), 'utf8');
-  dockerEOLData = JSON.parse(dockerEOLFile);
-  console.log('✅ Docker EOL-tiedot ladattu');
-} catch (error) {
-  console.error('❌ Virhe Docker EOL-tietojen latauksessa:', error.message);
-}
+const { requestIdMiddleware, requestLoggerMiddleware } = require('./src/core/logging');
+const { errorHandler } = require('./src/core/errors');
+const { config } = require('./src/core/config');
+const { githubClient } = require('./src/integrations/github/client');
+const { navigationItems, settingsItem } = require('./src/core/navigation');
+const { initializeDependencies } = require('./src/app/dependencies');
+const { getLanguageColor } = require('./src/core/utils/languageColors');
 
 // Kieltien värit
 const languageColors = {
@@ -105,10 +93,8 @@ const languageColors = {
   'Prettier': '#F7B93E'
 };
 
-// Helper funktio kielten värien hakemiseen
-function getLanguageColor(language) {
-  return languageColors[language] || '#6c757d';
-}
+// getLanguageColor is already imported from src/core/utils/languageColors
+// No need to redefine it here
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -118,6 +104,24 @@ app.use(express.static('public'));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Core middlewares
+app.use(requestIdMiddleware);
+app.use(requestLoggerMiddleware);
+
+// Add navigation config to all views
+app.use((req, res, next) => {
+  res.locals.navigationItems = navigationItems;
+  res.locals.settingsItem = settingsItem;
+  res.locals.currentPath = req.path;
+  next();
+});
+
+// Dependencies will be initialized later (after DatabaseCacheManager class definition)
+// See line ~904 for initialization
+
+// Add language color helper to app locals
+app.locals.getLanguageColor = getLanguageColor;
+
 // GitHub API konfiguraatio
 const GITHUB_API_BASE = 'https://api.github.com';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -126,6 +130,12 @@ const GITHUB_ORG = process.env.GITHUB_ORG || 'City-of-Helsinki';
 // Rate limiting configuration
 const RATE_LIMIT_ENABLED = process.env.RATE_LIMIT_ENABLED !== 'false';
 const RATE_LIMIT_DEBUG = process.env.RATE_LIMIT_DEBUG === 'true';
+
+// Test configuration - limit number of repositories
+const MAX_REPOSITORIES = process.env.MAX_REPOSITORIES ? parseInt(process.env.MAX_REPOSITORIES) : null;
+
+// Database configuration
+const USE_DATABASE = process.env.USE_DATABASE !== 'false';
 
 // GitHub API headers
 const githubHeaders = {
@@ -137,7 +147,9 @@ const githubHeaders = {
 // Debug GitHub API access
 console.log('🔑 GitHub API konfiguraatio:');
 console.log(`   - Token: ${GITHUB_TOKEN ? 'Asetettu' : 'PUUTTUU'}`);
+console.log(`   - Max Repositories: ${MAX_REPOSITORIES ? MAX_REPOSITORIES : 'Ei rajaa'}`);
 console.log(`   - Organisaatio: ${GITHUB_ORG}`);
+console.log(`   - Database: ${USE_DATABASE ? 'Käytössä' : 'POIS PÄÄLTÄ (käyttää in-memory cachea)'}`);
 console.log(`   - Rate limiting: ${RATE_LIMIT_ENABLED ? 'PÄÄLLÄ' : 'POIS PÄÄLTÄ'}`);
 console.log(`   - Debug mode: ${RATE_LIMIT_DEBUG ? 'PÄÄLLÄ' : 'POIS PÄÄLTÄ'}`);
 
@@ -320,10 +332,17 @@ class RateLimiter {
 const rateLimiter = new RateLimiter();
 
 // Database setup
-const db = new sqlite3.Database('./portfolio.db');
+let db = null;
+if (USE_DATABASE) {
+  db = new sqlite3.Database('./portfolio.db');
+  console.log('💾 Tietokanta käytössä');
+} else {
+  console.log('💾 Tietokanta pois käytöstä - käytetään in-memory cachea');
+}
 
-// Initialize database tables
-db.serialize(() => {
+// Initialize database tables (only if database is enabled)
+if (db) {
+  db.serialize(() => {
   // Cache table for API responses
   db.run(`CREATE TABLE IF NOT EXISTS cache (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -355,6 +374,11 @@ db.serialize(() => {
     react_version TEXT,
     drupal_version TEXT,
     dependabot_critical_count INTEGER,
+    owner TEXT,
+    team TEXT,
+    all_teams TEXT,
+    dependabot_access TEXT,
+    dependabot_permissions TEXT,
     last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
   
@@ -363,9 +387,70 @@ db.serialize(() => {
   db.run(`CREATE INDEX IF NOT EXISTS idx_cache_expires ON cache(expires_at)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_repos_name ON repositories(name)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_repos_updated ON repositories(updated_at)`);
-});
+  
+    // Migration: Add owner, team and dependabot_access columns if they don't exist
+    db.all(`PRAGMA table_info(repositories)`, (err, columns) => {
+      if (err) {
+        console.error('Error checking table columns:', err);
+        return;
+      }
+      
+      const columnNames = columns.map(col => col.name);
+      
+      if (!columnNames.includes('owner')) {
+        db.run(`ALTER TABLE repositories ADD COLUMN owner TEXT`, (alterErr) => {
+          if (alterErr) {
+            console.error('Error adding owner column:', alterErr);
+          } else {
+            console.log('✅ Added owner column to repositories table');
+          }
+        });
+      }
+      
+      if (!columnNames.includes('team')) {
+        db.run(`ALTER TABLE repositories ADD COLUMN team TEXT`, (alterErr) => {
+          if (alterErr) {
+            console.error('Error adding team column:', alterErr);
+          } else {
+            console.log('✅ Added team column to repositories table');
+          }
+        });
+      }
+      
+      if (!columnNames.includes('dependabot_access')) {
+        db.run(`ALTER TABLE repositories ADD COLUMN dependabot_access TEXT`, (alterErr) => {
+          if (alterErr) {
+            console.error('Error adding dependabot_access column:', alterErr);
+          } else {
+            console.log('✅ Added dependabot_access column to repositories table');
+          }
+        });
+      }
+      
+      if (!columnNames.includes('all_teams')) {
+        db.run(`ALTER TABLE repositories ADD COLUMN all_teams TEXT`, (alterErr) => {
+          if (alterErr) {
+            console.error('Error adding all_teams column:', alterErr);
+          } else {
+            console.log('✅ Added all_teams column to repositories table');
+          }
+        });
+      }
+      
+      if (!columnNames.includes('dependabot_permissions')) {
+        db.run(`ALTER TABLE repositories ADD COLUMN dependabot_permissions TEXT`, (alterErr) => {
+          if (alterErr) {
+            console.error('Error adding dependabot_permissions column:', alterErr);
+          } else {
+            console.log('✅ Added dependabot_permissions column to repositories table');
+          }
+        });
+      }
+    });
+  });
+}
 
-// Database-based cache system
+// Database-based cache system (or in-memory if database is disabled)
 class DatabaseCacheManager {
   constructor() {
     this.cacheStats = {
@@ -375,6 +460,11 @@ class DatabaseCacheManager {
       totalRequests: 0
     };
     this.pendingRequests = new Map(); // For request deduplication
+    
+    // In-memory cache when database is disabled
+    this.memoryCache = new Map();
+    this.memoryRepositories = new Map(); // In-memory repository storage
+    this.useDatabase = USE_DATABASE;
   }
 
   // Generate cache key for repository data
@@ -382,10 +472,34 @@ class DatabaseCacheManager {
     return `${repoName}:${dataType}`;
   }
 
-  // Get data from database cache
+  // Get data from database cache or in-memory cache
   get(key) {
     return new Promise((resolve) => {
       this.cacheStats.totalRequests++;
+      
+      if (!this.useDatabase) {
+        // Use in-memory cache
+        const cached = this.memoryCache.get(key);
+        if (cached && cached.expiresAt > Date.now()) {
+          this.cacheStats.hits++;
+          resolve(cached.data);
+        } else {
+          if (cached) {
+            // Remove expired entry
+            this.memoryCache.delete(key);
+          }
+          this.cacheStats.misses++;
+          resolve(null);
+        }
+        return;
+      }
+      
+      // Use database cache
+      if (!db) {
+        this.cacheStats.misses++;
+        resolve(null);
+        return;
+      }
       
       db.get(
         'SELECT data, expires_at FROM cache WHERE key = ? AND expires_at > datetime("now")',
@@ -417,16 +531,34 @@ class DatabaseCacheManager {
     });
   }
 
-  // Set data in database cache
+  // Set data in database cache or in-memory cache
   set(key, data, ttl = 3600000) { // Default 1 hour
     return new Promise((resolve) => {
       this.cacheStats.sets++;
-      const expiresAt = new Date(Date.now() + ttl).toISOString();
+      const expiresAt = Date.now() + ttl;
+      
+      if (!this.useDatabase) {
+        // Use in-memory cache
+        this.memoryCache.set(key, {
+          data: data,
+          expiresAt: expiresAt
+        });
+        resolve();
+        return;
+      }
+      
+      // Use database cache
+      if (!db) {
+        resolve();
+        return;
+      }
+      
+      const expiresAtISO = new Date(expiresAt).toISOString();
       const dataString = JSON.stringify(data);
       
       db.run(
         'INSERT OR REPLACE INTO cache (key, data, expires_at) VALUES (?, ?, ?)',
-        [key, dataString, expiresAt],
+        [key, dataString, expiresAtISO],
         (err) => {
           if (err) {
             console.error('Database error:', err);
@@ -440,6 +572,23 @@ class DatabaseCacheManager {
   // Clear cache for specific repository
   clearRepo(repoName) {
     return new Promise((resolve) => {
+      if (!this.useDatabase) {
+        // Clear from in-memory cache
+        const prefix = `${repoName}:`;
+        for (const key of this.memoryCache.keys()) {
+          if (key.startsWith(prefix)) {
+            this.memoryCache.delete(key);
+          }
+        }
+        resolve();
+        return;
+      }
+      
+      if (!db) {
+        resolve();
+        return;
+      }
+      
       db.run(
         'DELETE FROM cache WHERE key LIKE ?',
         [`${repoName}:%`],
@@ -456,6 +605,18 @@ class DatabaseCacheManager {
   // Clear all cache
   clearAll() {
     return new Promise((resolve) => {
+      if (!this.useDatabase) {
+        // Clear in-memory cache
+        this.memoryCache.clear();
+        resolve();
+        return;
+      }
+      
+      if (!db) {
+        resolve();
+        return;
+      }
+      
       db.run('DELETE FROM cache', (err) => {
         if (err) {
           console.error('Database error:', err);
@@ -468,6 +629,31 @@ class DatabaseCacheManager {
   // Get cache statistics
   getStats() {
     return new Promise((resolve) => {
+      if (!this.useDatabase) {
+        // Return in-memory cache stats
+        const hitRate = this.cacheStats.totalRequests > 0 
+          ? ((this.cacheStats.hits / this.cacheStats.totalRequests) * 100).toFixed(2) + '%'
+          : '0%';
+        
+        resolve({
+          ...this.cacheStats,
+          hitRate,
+          size: this.memoryCache.size,
+          memoryUsage: process.memoryUsage().heapUsed
+        });
+        return;
+      }
+      
+      if (!db) {
+        resolve({
+          ...this.cacheStats,
+          hitRate: '0%',
+          size: 0,
+          memoryUsage: process.memoryUsage().heapUsed
+        });
+        return;
+      }
+      
       db.get('SELECT COUNT(*) as count FROM cache', (err, row) => {
         if (err) {
           console.error('Database error:', err);
@@ -497,6 +683,28 @@ class DatabaseCacheManager {
   // Clean expired entries
   cleanExpired() {
     return new Promise((resolve) => {
+      if (!this.useDatabase) {
+        // Clean expired entries from in-memory cache
+        const now = Date.now();
+        let cleaned = 0;
+        for (const [key, value] of this.memoryCache.entries()) {
+          if (value.expiresAt <= now) {
+            this.memoryCache.delete(key);
+            cleaned++;
+          }
+        }
+        if (cleaned > 0) {
+          console.log(`🧹 Cleaned ${cleaned} expired cache entries from memory`);
+        }
+        resolve();
+        return;
+      }
+      
+      if (!db) {
+        resolve();
+        return;
+      }
+      
       db.run(
         'DELETE FROM cache WHERE expires_at <= datetime("now")',
         (err) => {
@@ -529,9 +737,26 @@ class DatabaseCacheManager {
     }
   }
 
-  // Save repository data to database
+  // Save repository data to database or in-memory storage
   saveRepository(repo) {
     return new Promise((resolve) => {
+      // Extract team data from repo if available
+      let owner = null;
+      let team = null;
+      let all_teams = [];
+      
+      if (repo.owner) {
+        owner = typeof repo.owner === 'string' ? repo.owner : repo.owner;
+      }
+      
+      if (repo.all_teams && Array.isArray(repo.all_teams) && repo.all_teams.length > 0) {
+        all_teams = repo.all_teams;
+        team = all_teams[0]; // Use first team as primary
+      } else if (repo.team) {
+        team = typeof repo.team === 'string' ? repo.team : repo.team;
+        all_teams = [team];
+      }
+      
       const repoData = {
         name: repo.name,
         full_name: repo.full_name,
@@ -551,16 +776,40 @@ class DatabaseCacheManager {
         django_version: repo.django_version,
         react_version: repo.react_version,
         drupal_version: repo.drupal_version,
-        dependabot_critical_count: repo.dependabot_critical_count
+        wordpress_version: repo.wordpress_version || null,
+        dependabot_critical_count: repo.dependabot_critical_count,
+        owner: owner,
+        team: team,
+        all_teams: JSON.stringify(all_teams),
+        dependabot_access: null,
+        dependabot_permissions: JSON.stringify(repo.dependabot_permissions || [])
       };
+
+      if (!this.useDatabase) {
+        // Save to in-memory storage
+        this.memoryRepositories.set(repo.name, {
+          ...repoData,
+          languages: repo.languages || {},
+          topics: repo.topics || [],
+          all_teams: all_teams,
+          dependabot_permissions: repo.dependabot_permissions || []
+        });
+        resolve();
+        return;
+      }
+
+      if (!db) {
+        resolve();
+        return;
+      }
 
       db.run(
         `INSERT OR REPLACE INTO repositories (
           name, full_name, description, html_url, clone_url, homepage,
           language, languages, stargazers_count, forks_count, updated_at,
           created_at, topics, readme, docker_base_image, django_version,
-          react_version, drupal_version, dependabot_critical_count
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               react_version, drupal_version, wordpress_version, dependabot_critical_count, owner, team, all_teams, dependabot_access, dependabot_permissions
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         Object.values(repoData),
         (err) => {
           if (err) {
@@ -572,9 +821,35 @@ class DatabaseCacheManager {
     });
   }
 
-  // Get all repositories from database
+  // Get all repositories from database or in-memory storage
   getRepositories() {
     return new Promise((resolve) => {
+      if (!this.useDatabase) {
+        // Get from in-memory storage
+        const repositories = Array.from(this.memoryRepositories.values())
+          .sort((a, b) => {
+            const dateA = new Date(a.updated_at || 0);
+            const dateB = new Date(b.updated_at || 0);
+            return dateB - dateA; // Descending order
+          });
+        
+        // Debug: log first repository sample data
+        if (repositories.length > 0) {
+          console.log('🔍 Sample repo from memory:', {
+            name: repositories[0].name,
+            dependabot_critical_count: repositories[0].dependabot_critical_count
+          });
+        }
+        
+        resolve(repositories);
+        return;
+      }
+
+      if (!db) {
+        resolve([]);
+        return;
+      }
+
       db.all('SELECT * FROM repositories ORDER BY updated_at DESC', (err, rows) => {
         if (err) {
           console.error('Database error:', err);
@@ -585,8 +860,18 @@ class DatabaseCacheManager {
         const repositories = rows.map(row => ({
           ...row,
           languages: JSON.parse(row.languages || '{}'),
-          topics: JSON.parse(row.topics || '[]')
+          topics: JSON.parse(row.topics || '[]'),
+          all_teams: JSON.parse(row.all_teams || '[]'),
+          dependabot_permissions: JSON.parse(row.dependabot_permissions || '[]')
         }));
+        
+        // Debug: log first repository sample data
+        if (repositories.length > 0) {
+          console.log('🔍 Sample repo from DB:', {
+            name: repositories[0].name,
+            dependabot_critical_count: repositories[0].dependabot_critical_count
+          });
+        }
         
         resolve(repositories);
       });
@@ -594,118 +879,100 @@ class DatabaseCacheManager {
   }
 }
 
-const cacheManager = new DatabaseCacheManager();
+// Initialize dependencies (includes new unified cache manager with Redis support)
+// This replaces the old DatabaseCacheManager
+// Note: initializeDependencies is now async, so we need to await it
+let dependencies = null;
+// Cache manager reference for legacy functions - will be set after initialization
+let cacheManager = null;
+let cacheRepository = null;
 
-// Clean expired cache entries every 30 minutes
-setInterval(() => {
-  cacheManager.cleanExpired();
-}, 30 * 60 * 1000);
-
-// Tarkista Docker base image EOL-tilassa
-function checkDockerEOL(baseImage) {
-  if (!baseImage) {
-    return {
-      status: 'unknown',
-      eol_date: null,
-      description: 'Tuntematon base image'
-    };
-  }
-
-  // Normalize base image name (remove tags, digests, etc.)
-  let normalizedImage = baseImage.toLowerCase();
+initializeDependencies().then(deps => {
+  dependencies = deps;
   
-  // Remove common prefixes and suffixes
-  normalizedImage = normalizedImage.replace(/@sha256:[a-f0-9]+$/, ''); // Remove digest
-  normalizedImage = normalizedImage.replace(/:[^:]+$/, ''); // Remove tag
-  
-  // Check for exact match first
-  if (dockerEOLData[normalizedImage]) {
-    return dockerEOLData[normalizedImage];
-  }
-  
-  // Check for partial matches (e.g., node:18-alpine matches node:18)
-  for (const [imagePattern, eolInfo] of Object.entries(dockerEOLData)) {
-    if (normalizedImage.startsWith(imagePattern) || imagePattern.includes(normalizedImage)) {
-      return eolInfo;
-    }
-  }
-  
-  // Check for version patterns (e.g., node:18.5.0 matches node:18)
-  const versionMatch = normalizedImage.match(/^([^:]+):(\d+\.\d+)/);
-  if (versionMatch) {
-    const [, imageName, majorMinor] = versionMatch;
-    const patternKey = `${imageName}:${majorMinor}`;
-    if (dockerEOLData[patternKey]) {
-      return dockerEOLData[patternKey];
-    }
-  }
-  
-  return {
-    status: 'unknown',
-    eol_date: null,
-    description: 'Tuntematon base image'
-  };
-}
-
-// Tarkista Django-versio EOL-tilassa
-function checkDjangoEOL(version) {
-  if (!version) {
-    return {
-      status: 'unknown',
-      eol_date: null,
-      description: 'Tuntematon versio'
-    };
-  }
-  
-  // Extract major.minor version (e.g., "3.2.15" -> "3.2")
-  const majorMinor = version.match(/^(\d+\.\d+)/);
-  const versionKey = majorMinor ? majorMinor[1] : version;
-  
-  if (!djangoEOLData[versionKey]) {
-    return {
-      status: 'unknown',
-      eol_date: null,
-      description: 'Tuntematon versio'
-    };
-  }
-  
-  const eolInfo = djangoEOLData[versionKey];
-  
-  // For supported versions, check if it's the latest patch version
-  if (eolInfo.status === 'supported') {
-    // Check if it's a patch version and if it's the latest
-    const patchMatch = version.match(/^(\d+\.\d+)\.(\d+)$/);
-    if (patchMatch) {
-      const [, majorMinor, patch] = patchMatch;
-      const latestPatch = getLatestPatchVersion(majorMinor);
-      
-      if (latestPatch && parseInt(patch) < parseInt(latestPatch)) {
-        return {
-          ...eolInfo,
-          status: 'outdated',
-          description: `Tuettu, mutta ei viimeisin patch-versio (viimeisin: ${majorMinor}.${latestPatch})`
-        };
-      }
-    }
+  // Create legacy cache manager wrapper for compatibility
+  cacheManager = {
+    // Unified cache manager methods
+    get: (key) => deps.cacheManager.get(key),
+    set: (key, value, ttl) => deps.cacheManager.set(key, value, ttl),
     
-    return eolInfo;
-  }
-  
-  return eolInfo;
-}
-
-// Get latest patch version for a major.minor version
-function getLatestPatchVersion(majorMinor) {
-  // This is a simplified version - in reality you'd want to fetch this from Django's API
-  // or maintain a more comprehensive database
-  const latestPatches = {
-    '4.2': '24',
-    '5.1': '8', 
-    '5.2': '7'
+    // Cache key generation
+    getCacheKey: (repoName, dataType) => `${repoName}:${dataType}`,
+    
+    // Request deduplication
+    deduplicateRequest: (key, fn) => deps.cacheManager.deduplicateRequest(key, fn),
+    
+    // Repository methods (from repositoryRepository)
+    getRepositories: (options) => deps.repositoryRepository.getAllRepositories(options),
+    saveRepository: (repo) => deps.repositoryRepository.saveRepository(repo),
+    
+    // Stats method
+    getStats: () => deps.cacheManager.getStats()
   };
   
-  return latestPatches[majorMinor] || null;
-}
+  cacheRepository = deps.cacheRepository;
+  console.log('✅ All dependencies initialized');
+  
+  // Use new architecture routes - must be registered after dependencies are initialized
+  app.use(dependencies.repositoryRoutes);
+  app.use(dependencies.dockerRoutes);
+  app.use(dependencies.drupalRoutes);
+  app.use(dependencies.djangoRoutes);
+  app.use(dependencies.wordpressRoutes);
+  app.use(dependencies.reactRoutes);
+  app.use(dependencies.dependabotRoutes);
+  app.use(dependencies.languagesRoutes);
+  app.use(dependencies.dashboardRoutes);
+  app.use(dependencies.hdsRoutes);
+  app.use(dependencies.usersRoutes);
+  app.use(dependencies.branchesRoutes);
+  app.use(dependencies.releasesRoutes);
+  app.use(dependencies.contentsRoutes);
+  app.use(dependencies.commitsRoutes);
+  app.use(dependencies.teamsRoutes);
+  app.use(dependencies.collaboratorsRoutes);
+  app.use(dependencies.issuesRoutes);
+  app.use(dependencies.pullRequestsRoutes);
+  
+  console.log('✅ Routes registered:', [
+    '/repositories',
+    '/api/repos',
+    '/commits',
+    '/teams',
+    '/collaborators',
+    '/issues',
+    '/pull-requests'
+  ].join(', '));
+  
+  // Register 404 handler AFTER all routes
+  app.use((req, res) => {
+    res.status(404).render('error', {
+      message: 'Sivua ei löytynyt',
+      error: { status: 404 }
+    });
+  });
+  
+  // Start server only after dependencies are initialized and routes are registered
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  });
+}).catch(err => {
+  console.error('❌ Failed to initialize dependencies:', err);
+  process.exit(1);
+});
+
+// Clean expired cache entries periodically (using new cache manager)
+const cleanupInterval = config.cache.cleanupInterval || 600000; // Default 10 minutes
+setInterval(() => {
+  if (dependencies && dependencies.cacheManager) {
+    dependencies.cacheManager.cleanExpired().catch(err => {
+      console.error('Cache cleanup error:', err.message);
+    });
+  }
+}, cleanupInterval);
+
+console.log(`🧹 Cache cleanup scheduled every ${cleanupInterval / 1000 / 60} minutes`);
 
 // Helper function to find all Dockerfiles in a repository
 async function findAllDockerfiles(ownerLogin, repoName) {
@@ -800,6 +1067,43 @@ async function findAllDockerfiles(ownerLogin, repoName) {
   } catch (error) {
     console.log(`❌ Virhe Dockerfile-tiedostojen haussa reposta ${repoName}: ${error.message}`);
     return [];
+  }
+}
+
+// Helper: fetch a single likely Dockerfile and extract primary base images (lightweight)
+async function getSingleDockerfileForRepo(repo) {
+  try {
+    const ownerLogin = (repo.owner && repo.owner.login) || (repo.full_name ? repo.full_name.split('/')[0] : null);
+    if (!ownerLogin || !repo.name) return null;
+
+    // Minimal set of probable locations; try root Dockerfile first, then docker/Dockerfile
+    const candidatePaths = ['Dockerfile', 'docker/Dockerfile'];
+
+    for (const dockerfilePath of candidatePaths) {
+      try {
+        const { data } = await axios.get(
+          `${GITHUB_API_BASE}/repos/${ownerLogin}/${repo.name}/contents/${dockerfilePath}`,
+          { headers: { Authorization: `token ${GITHUB_TOKEN}`, 'User-Agent': 'Application-Portfolio' } }
+        );
+
+        if (data && data.type === 'file' && data.content) {
+          const content = Buffer.from(data.content, 'base64').toString('utf8');
+          const baseImages = extractBaseImages(content, dockerfilePath);
+          return {
+            path: dockerfilePath,
+            baseImages
+          };
+        }
+      } catch (err) {
+        // Not found, try next candidate
+        continue;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`❌ Virhe yksittäisen Dockerfilen haussa reposta ${repo.name}:`, error.message);
+    return null;
   }
 }
 
@@ -1077,6 +1381,14 @@ async function getDrupalDataForRepo(repo) {
                 version = parts.slice(0, 2).join('.');
               }
             }
+
+            // Drupalissa ei ole 2.x tai 3.x versioita: hylkää epäkelvot (sallitut 7.x, 8.x, 9.x, 10.x, 11.x ...)
+            if (version) {
+              const major = parseInt(version.split('.')[0], 10);
+              if (Number.isNaN(major) || major < 7) {
+                version = null;
+              }
+            }
           }
           
           return version;
@@ -1093,6 +1405,155 @@ async function getDrupalDataForRepo(repo) {
   } catch (error) {
     console.error(`❌ Virhe Drupal-tietojen haussa reposta ${repo.name}:`, error.message);
     return null;
+  }
+}
+
+// Hae WordPress-versio repositorylle
+async function getWordPressDataForRepo(repo) {
+  try {
+    if (repo.language !== 'PHP') {
+      return null;
+    }
+    
+    const ownerLogin = getOwnerLogin(repo);
+    
+    const wordpressCacheKey = cacheManager.getCacheKey(repo.name, 'wordpress_version');
+    let wordpressVersion = await cacheManager.get(wordpressCacheKey);
+    
+    if (!wordpressVersion) {
+      // Try composer.json first
+      try {
+        const composerResponse = await rateLimiter.makeRequest(
+          `${GITHUB_API_BASE}/repos/${ownerLogin}/${repo.name}/contents/composer.json`
+        );
+        const composerContent = Buffer.from(composerResponse.data.content, 'base64').toString('utf-8');
+        const composerJson = JSON.parse(composerContent);
+        
+        // Check for WordPress packages
+        let version = null;
+        
+        // Check johnpbloch/wordpress-core (Bedrock-style)
+        if (composerJson.require && composerJson.require['johnpbloch/wordpress-core']) {
+          version = composerJson.require['johnpbloch/wordpress-core'];
+        } 
+        // Check wordpress/wordpress
+        else if (composerJson.require && composerJson.require['wordpress/wordpress']) {
+          version = composerJson.require['wordpress/wordpress'];
+        }
+        // Check for WordPress in require-dev
+        else if (composerJson['require-dev'] && composerJson['require-dev']['johnpbloch/wordpress-core']) {
+          version = composerJson['require-dev']['johnpbloch/wordpress-core'];
+        }
+        
+        // Clean version (remove ^, ~, >=, etc.)
+        if (version) {
+          version = version.replace(/[\^~>=<]+/, '');
+          // Remove dev, alpha, beta, rc versions
+          if (version.includes('-')) {
+            version = version.split('-')[0];
+          }
+          // Validate version format
+          if (/^\d+\.\d+(\.\d+)?$/.test(version)) {
+            wordpressVersion = version;
+          }
+        }
+      } catch (composerError) {
+        // composer.json not found or error, try wp-config.php or version.php
+      }
+      
+      // Try wp-config.php if composer.json didn't work
+      if (!wordpressVersion) {
+        try {
+          const wpConfigResponse = await rateLimiter.makeRequest(
+            `${GITHUB_API_BASE}/repos/${ownerLogin}/${repo.name}/contents/wp-config.php`
+          );
+          const wpConfigContent = Buffer.from(wpConfigResponse.data.content, 'base64').toString('utf-8');
+          
+          // Look for $wp_version or WP_VERSION constant
+          const versionMatch = wpConfigContent.match(/(?:WP_VERSION|\\$wp_version)\s*[=:]\s*['"]([^'"]+)['"]/);
+          if (versionMatch) {
+            wordpressVersion = versionMatch[1];
+          }
+        } catch (wpConfigError) {
+          // wp-config.php not found, try version.php
+          try {
+            const versionResponse = await rateLimiter.makeRequest(
+              `${GITHUB_API_BASE}/repos/${ownerLogin}/${repo.name}/contents/wp-includes/version.php`
+            );
+            const versionContent = Buffer.from(versionResponse.data.content, 'base64').toString('utf-8');
+            
+            // Look for $wp_version variable
+            const versionMatch = versionContent.match(/\\$wp_version\s*=\s*['"]([^'"]+)['"]/);
+            if (versionMatch) {
+              wordpressVersion = versionMatch[1];
+            }
+          } catch (versionError) {
+            // Neither file found
+          }
+        }
+      }
+      
+      // Cache the result
+      await cacheManager.set(wordpressCacheKey, wordpressVersion, 43200000); // 12h cache
+    }
+    
+    return wordpressVersion;
+  } catch (error) {
+    console.error(`❌ Virhe WordPress-tietojen haussa reposta ${repo.name}:`, error.message);
+    return null;
+  }
+}
+
+// Hae tiimitieto repositorylle GitHub API:sta
+async function getTeamDataForRepo(repo) {
+  try {
+    const ownerLogin = getOwnerLogin(repo);
+    
+    const teamCacheKey = cacheManager.getCacheKey(repo.name, 'teams');
+    let teamData = await cacheManager.get(teamCacheKey);
+    
+    if (teamData === null) {
+      const requestKey = `teams_${ownerLogin}_${repo.name}`;
+      teamData = await cacheManager.deduplicateRequest(requestKey, async () => {
+        try {
+          const teamsResp = await rateLimiter.makeRequest(
+            `${GITHUB_API_BASE}/repos/${ownerLogin}/${repo.name}/teams`
+          );
+          
+          const teams = teamsResp.data || [];
+          const teamNames = teams.map(team => team.name || team.slug).filter(name => name);
+          
+          return {
+            owner: ownerLogin,
+            team: teamNames.length > 0 ? teamNames[0] : null,
+            all_teams: teamNames
+          };
+        } catch (teamError) {
+          // Jos ei pääsyä tiimeihin, käytä owner-loginia
+          if (teamError.response?.status === 403 || teamError.response?.status === 404) {
+            console.log(`⚠️ Tiimitieto ei saatavilla reposta: ${repo.name}`);
+          }
+          return {
+            owner: ownerLogin,
+            team: null,
+            all_teams: []
+          };
+        }
+      });
+      
+      // Cache the result for 24 hours
+      await cacheManager.set(teamCacheKey, teamData, 86400000);
+    }
+    
+    return teamData;
+  } catch (error) {
+    console.error(`❌ Virhe tiimitietojen haussa reposta ${repo.name}:`, error.message);
+    const ownerLogin = getOwnerLogin(repo);
+    return {
+      owner: ownerLogin,
+      team: null,
+      all_teams: []
+    };
   }
 }
 
@@ -1156,6 +1617,69 @@ async function getDependabotDataForRepo(repo) {
   } catch (error) {
     console.error(`❌ Virhe Dependabot-tietojen haussa reposta ${repo.name}:`, error.message);
     return 0;
+  }
+}
+
+// Hae viimeisimmän commitin tiedot repositorylle
+async function getLatestCommitData(ownerLogin, repoName) {
+  try {
+    const cacheKey = `latest_commit_data_${ownerLogin}_${repoName}`;
+    let cachedData = await cacheManager.get(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+    
+    console.log(`🔍 Haetaan viimeisin commit reposta: ${ownerLogin}/${repoName}`);
+    
+    const commitsResp = await rateLimiter.makeRequest(
+      `${GITHUB_API_BASE}/repos/${ownerLogin}/${repoName}/commits`,
+      {
+        params: {
+          per_page: 1,
+          page: 1
+        }
+      }
+    );
+    
+    let commitData = {
+      author: null,
+      message: null,
+      date: null,
+      sha: null
+    };
+    
+    if (commitsResp.data && commitsResp.data.length > 0) {
+      const lastCommit = commitsResp.data[0];
+      
+      commitData.sha = lastCommit.sha;
+      
+      // Hae author (käyttäjänimi tai nimi)
+      if (lastCommit.author && lastCommit.author.login) {
+        commitData.author = lastCommit.author.login;
+      } else if (lastCommit.commit && lastCommit.commit.author) {
+        commitData.author = lastCommit.commit.author.name;
+      }
+      
+      // Hae commit message
+      if (lastCommit.commit && lastCommit.commit.message) {
+        commitData.message = lastCommit.commit.message.split('\n')[0]; // Ensimmäinen rivi
+      }
+      
+      // Hae päivämäärä
+      if (lastCommit.commit && lastCommit.commit.author) {
+        commitData.date = lastCommit.commit.author.date;
+      }
+      
+      console.log(`✅ Latest commit for ${repoName}: ${commitData.author} - ${commitData.message?.substring(0, 50)}...`);
+    }
+    
+    // Cache the result for 24 hours
+    await cacheManager.set(cacheKey, commitData, 24 * 60 * 60 * 1000);
+    
+    return commitData;
+  } catch (error) {
+    console.log(`⚠️ Could not fetch last commit for ${repoName}: ${error.message}`);
+    return { author: null, message: null, date: null, sha: null };
   }
 }
 
@@ -1371,8 +1895,14 @@ async function getRecentRepositories() {
     
     // Suodata pois arkistoidut
     const archivedCount = allRepos.filter(repo => repo.archived).length;
-    const recentRepos = allRepos.filter(repo => !repo.archived);
+    let recentRepos = allRepos.filter(repo => !repo.archived);
     console.log(`🗃️ Arkistoitu: ${archivedCount}, Aktiivinen: ${recentRepos.length}`);
+    
+    // Apply repository limit for testing if set
+    if (MAX_REPOSITORIES) {
+      recentRepos = recentRepos.slice(0, MAX_REPOSITORIES);
+      console.log(`🧪 TESTTILA: Rajoitettu ${MAX_REPOSITORIES} repositoryyn (alkuperäinen määrä: ${allRepos.filter(repo => !repo.archived).length})`);
+    }
 
     // Hae lisätietoja jokaisesta reposta - batch processing
     console.log(`🔧 Rikastetaan ${recentRepos.length} reposta...`);
@@ -1545,8 +2075,8 @@ async function getRecentRepositories() {
 }
 
 
-// Pääreitti
-app.get('/', async (req, res) => {
+/* Legacy dashboard removed - handled by new architecture
+app.get('/dashboard', async (req, res) => {
   try {
     if (!GITHUB_TOKEN) {
       return res.render('error', {
@@ -1554,34 +2084,26 @@ app.get('/', async (req, res) => {
         error: { status: 500 }
       });
     }
-
-    console.log('🚀 Aloitetaan repojen haku...');
     
     // Check if we should refresh data from API or use cached data
     const refreshData = req.query.refresh === 'true';
     let repositories;
     
     if (refreshData) {
-      console.log('🔄 Päivitetään tiedot GitHub API:sta...');
       try {
         repositories = await getRecentRepositories();
-        console.log(`📦 Repot haettu onnistuneesti: ${repositories.length} kpl`);
       } catch (error) {
         console.error('❌ Virhe repojen haussa:', error.message);
         repositories = [];
       }
     } else {
-      console.log('💾 Käytetään tietokantaan tallennettuja tietoja...');
       try {
         repositories = await cacheManager.getRepositories();
-        console.log(`📦 Repot haettu tietokannasta: ${repositories.length} kpl`);
         
         // Jos tietokannassa ei ole tietoja, hae API:sta
         if (repositories.length === 0) {
-          console.log('💾 Tietokanta tyhjä, haetaan tiedot API:sta...');
           try {
             repositories = await getRecentRepositories();
-            console.log(`📦 Repot haettu API:sta: ${repositories.length} kpl`);
           } catch (error) {
             console.error('❌ Virhe repojen haussa:', error.message);
             repositories = [];
@@ -1593,122 +2115,194 @@ app.get('/', async (req, res) => {
       }
     }
     
-    // Log final rate limit status
-    const finalStatus = rateLimiter.getRateLimitStatus();
-    console.log('📊 Lopullinen rate limit status:');
-    console.log(`   - Käytetty: ${finalStatus.used}/${finalStatus.limit} (${Math.round((finalStatus.used/finalStatus.limit)*100)}%)`);
-    console.log(`   - Jäljellä: ${finalStatus.remaining}`);
-    console.log(`   - Reset: ${new Date(finalStatus.reset).toLocaleString('fi-FI')}`);
-    console.log(`   - Concurrent: ${finalStatus.concurrentRequests}`);
-    console.log(`   - Queue: ${finalStatus.queueLength}`);
-    
-    // Log cache statistics
-    const cacheStats = await cacheManager.getStats();
-    console.log('💾 Cache statistiikat:');
-    console.log(`   - Hit rate: ${cacheStats.hitRate}`);
-    console.log(`   - Hits: ${cacheStats.hits}, Misses: ${cacheStats.misses}`);
-    console.log(`   - Cache size: ${cacheStats.size} entries`);
-    console.log(`   - Memory usage: ${Math.round(cacheStats.memoryUsage / 1024 / 1024)} MB`);
-    
-    // Laske yhteenvedot
-    const languageCounts = {
-      PHP: 0,
-      JavaScript: 0,
-      Python: 0,
-      Java: 0
-    };
-    
-    const frameworkCounts = {
-      React: 0,
-      Django: 0,
-      Drupal: 0,
-      WordPress: 0
-    };
-    
-    // Docker and Dependabot summary stats removed per requirements
-    
-    console.log('🔍 Lasketaan yhteenvedot...');
-    console.log(`📊 Yhteensä ${repositories.length} reposta`);
-    
+    // Calculate language counts
+    const languageCounts = {};
     repositories.forEach(repo => {
-      const repoName = repo.name.toLowerCase();
-      const detectedLanguages = [];
-      const detectedFrameworks = [];
-      
-      // Kieltiedot - tarkista sekä language että nimi
-      if (repo.language === 'PHP' || repoName.includes('php')) {
-        languageCounts.PHP++;
-        detectedLanguages.push('PHP');
-      }
-      // Merge TypeScript into JavaScript
-      if (repo.language === 'TypeScript' || repoName.includes('typescript') || repoName.includes('ts-')) {
-        languageCounts.JavaScript++;
-        detectedLanguages.push('JavaScript');
-      }
-      if (repo.language === 'JavaScript' || repoName.includes('javascript') || repoName.includes('js-') || repoName.includes('node')) {
-        languageCounts.JavaScript++;
-        detectedLanguages.push('JavaScript');
-      }
-      if (repo.language === 'Python' || repoName.includes('python') || repoName.includes('py-') || repoName.includes('django')) {
-        languageCounts.Python++;
-        detectedLanguages.push('Python');
-      }
-      if (repo.language === 'Java' || repoName.includes('java') || repoName.includes('spring')) {
-        languageCounts.Java++;
-        detectedLanguages.push('Java');
-      }
-      
-      // Framework-tiedot - tarkista sekä versio että nimi
-      if (repo.react_version || repoName.includes('react') || repoName.includes('nextjs') || repoName.includes('gatsby')) {
-        frameworkCounts.React++;
-        detectedFrameworks.push('React');
-      }
-      if (repo.django_version || repoName.includes('django')) {
-        frameworkCounts.Django++;
-        detectedFrameworks.push('Django');
-      }
-      if (repo.drupal_version || repoName.includes('drupal') || repoName.includes('drupal-') || repoName.includes('drupal_')) {
-        frameworkCounts.Drupal++;
-        detectedFrameworks.push('Drupal');
-      }
-      if (repoName.includes('wordpress') || repoName.includes('wp') || repoName.includes('WP') || repoName === 'wp' || repoName.includes('wp/')) {
-        frameworkCounts.WordPress++;
-        detectedFrameworks.push('WordPress');
-      }
-      
-      // Docker and Dependabot summary aggregation removed per requirements
-      
-      // Debug-loki jokaiselle repolle
-      if (detectedLanguages.length > 0 || detectedFrameworks.length > 0) {
-        console.log(`📁 ${repo.name} (${repo.language}):`, {
-          languages: detectedLanguages,
-          frameworks: detectedFrameworks,
-          reactVersion: repo.react_version,
-          djangoVersion: repo.django_version,
-          drupalVersion: repo.drupal_version
-        });
+      if (repo.language) {
+        languageCounts[repo.language] = (languageCounts[repo.language] || 0) + 1;
       }
     });
     
-    console.log('📈 Yhteenvedot:');
-    console.log('Kielet:', languageCounts);
-    console.log('Frameworkit:', frameworkCounts);
-    console.log('🎯 Sivu renderöidään...');
+    const totalRepos = repositories.length;
     
-    // Log missing owner summary
-    logMissingOwnerSummary();
+    // 1. Turvallisuustilanne-yhteenveto (Dependabot)
+    const totalCriticalAlerts = repositories.reduce((sum, repo) => {
+      return sum + (repo.dependabot_critical_count || 0);
+    }, 0);
+    const reposWithAlerts = repositories.filter(repo => (repo.dependabot_critical_count || 0) > 0).length;
+    const reposWithoutAlerts = totalRepos - reposWithAlerts;
     
-    res.render('index', {
-      title: 'City of Helsinki - Sovellusportfolio',
+    // 2. Framework/teknologia-yhteenveto
+    const djangoRepos = repositories.filter(repo => repo.django_version).length;
+    const reactRepos = repositories.filter(repo => repo.react_version).length;
+    const drupalRepos = repositories.filter(repo => repo.drupal_version).length;
+    const dockerRepos = repositories.filter(repo => repo.docker_base_image).length;
+    
+    // 3. Aktiivisuustilastot
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const recentlyUpdated = repositories.filter(repo => {
+      if (!repo.updated_at) return false;
+      const updatedDate = new Date(repo.updated_at);
+      return updatedDate >= thirtyDaysAgo;
+    }).length;
+    
+    // Note: archived flag might not be available in cached data
+    const archivedRepos = repositories.filter(repo => repo.archived === true).length;
+    const activeRepos = totalRepos - archivedRepos;
+    
+    // Calculate average days since update
+    const daysSinceUpdates = repositories
+      .map(repo => {
+        if (!repo.updated_at) return null;
+        const updatedDate = new Date(repo.updated_at);
+        return Math.floor((now - updatedDate) / (1000 * 60 * 60 * 24));
+      })
+      .filter(days => days !== null);
+    const avgDaysSinceUpdate = daysSinceUpdates.length > 0
+      ? Math.round(daysSinceUpdates.reduce((a, b) => a + b, 0) / daysSinceUpdates.length)
+      : 0;
+    
+    // 4. Top repositoryt
+    const topStars = [...repositories]
+      .sort((a, b) => (b.stargazers_count || 0) - (a.stargazers_count || 0))
+      .slice(0, 5);
+    const topForks = [...repositories]
+      .sort((a, b) => (b.forks_count || 0) - (a.forks_count || 0))
+      .slice(0, 5);
+    const topRecent = [...repositories]
+      .sort((a, b) => {
+        const dateA = new Date(a.updated_at || 0);
+        const dateB = new Date(b.updated_at || 0);
+        return dateB - dateA;
+      })
+      .slice(0, 5);
+    
+    // 5. Organisaatiot/tiimit-yhteenveto
+    const reposWithTeams = repositories.filter(repo => {
+      const teams = repo.all_teams || (Array.isArray(repo.all_teams) ? repo.all_teams : JSON.parse(repo.all_teams || '[]'));
+      return teams && teams.length > 0;
+    }).length;
+    const reposWithoutTeams = totalRepos - reposWithTeams;
+    
+    // Team statistics
+    const teamStats = {};
+    repositories.forEach(repo => {
+      let teams = [];
+      if (repo.all_teams) {
+        if (Array.isArray(repo.all_teams)) {
+          teams = repo.all_teams;
+        } else {
+          try {
+            teams = JSON.parse(repo.all_teams || '[]');
+          } catch (e) {
+            teams = [];
+          }
+        }
+      }
+      teams.forEach(team => {
+        teamStats[team] = (teamStats[team] || 0) + 1;
+      });
+    });
+    const topTeams = Object.entries(teamStats)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+    
+    // 6. Helsinki Design System -käyttö
+    // Need to fetch HDS data for repositories
+    const frontendRepos = repositories.filter(repo => 
+      ['JavaScript', 'TypeScript', 'HTML', 'CSS', 'SCSS', 'Vue', 'React'].includes(repo.language)
+    );
+    
+    // Check HDS data from cache (this might not be complete, but we'll try)
+    let hdsReposCount = 0;
+    const hdsVersions = {};
+    for (const repo of frontendRepos.slice(0, 50)) { // Limit to avoid too many API calls
+      try {
+        const hdsData = await getHDSDataForRepo(repo);
+        if (hdsData && hdsData.has_hds) {
+          hdsReposCount++;
+          Object.keys(hdsData.hds_packages || {}).forEach(pkg => {
+            const version = hdsData.hds_packages[pkg];
+            const versionKey = `${pkg}:${version}`;
+            hdsVersions[versionKey] = (hdsVersions[versionKey] || 0) + 1;
+          });
+        }
+      } catch (e) {
+        // Skip if HDS data not available
+      }
+    }
+    
+    const topHDSVersions = Object.entries(hdsVersions)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([version, count]) => ({ version, count }));
+    
+    // 7. Repository-terveysindikaattorit
+    // Simplified version using available data - can be enhanced with additional API calls if needed
+    const reposWithDescription = repositories.filter(repo => repo.description && repo.description.trim().length > 0).length;
+    const reposWithTopics = repositories.filter(repo => {
+      const topics = repo.topics || (Array.isArray(repo.topics) ? repo.topics : JSON.parse(repo.topics || '[]'));
+      return topics && topics.length > 0;
+    }).length;
+    const reposWithHomepage = repositories.filter(repo => repo.homepage && repo.homepage.trim().length > 0).length;
+    
+    // Calculate health score (0-100) based on available data
+    // This is a simplified version - full implementation would check README, issues, PRs, CI/CD
+    const healthMetrics = {
+      withDescription: reposWithDescription,
+      withTopics: reposWithTopics,
+      withHomepage: reposWithHomepage,
+      totalRepos: totalRepos
+    };
+    
+    res.render('dashboard', {
+      title: 'Dashboard',
       organization: GITHUB_ORG,
       repositories: repositories,
-      totalRepos: repositories.length,
+      totalRepos: totalRepos,
       languageCounts: languageCounts,
-      frameworkCounts: frameworkCounts,
+      
+      // 1. Turvallisuustilanne
+      totalCriticalAlerts: totalCriticalAlerts,
+      reposWithAlerts: reposWithAlerts,
+      reposWithoutAlerts: reposWithoutAlerts,
+      
+      // 2. Framework/teknologia
+      djangoRepos: djangoRepos,
+      reactRepos: reactRepos,
+      drupalRepos: drupalRepos,
+      dockerRepos: dockerRepos,
+      
+      // 3. Aktiivisuustilastot
+      recentlyUpdated: recentlyUpdated,
+      archivedRepos: archivedRepos,
+      activeRepos: activeRepos,
+      avgDaysSinceUpdate: avgDaysSinceUpdate,
+      
+      // 4. Top repositoryt
+      topStars: topStars,
+      topForks: topForks,
+      topRecent: topRecent,
+      
+      // 5. Organisaatiot/tiimit
+      reposWithTeams: reposWithTeams,
+      reposWithoutTeams: reposWithoutTeams,
+      topTeams: topTeams,
+      
+      // 6. HDS-käyttö
+      hdsReposCount: hdsReposCount,
+      frontendReposCount: frontendRepos.length,
+      topHDSVersions: topHDSVersions,
+      
+      // 7. Repository-terveysindikaattorit
+      healthMetrics: healthMetrics,
+      
       getLanguageColor: getLanguageColor
     });
   } catch (error) {
-    console.error('Virhe sivun latauksessa:', error);
+    console.error('❌ Virhe etusivun latauksessa:', error);
     
     // Jos on 502-virhe, näytä ystävällisempi viesti
     if (error.response?.status === 502) {
@@ -1718,11 +2312,18 @@ app.get('/', async (req, res) => {
       });
     } else {
       res.render('error', {
-        message: 'Virhe repojen latauksessa',
+        message: 'Virhe etusivun latauksessa',
         error: { status: 500, stack: error.stack }
       });
     }
-  }
+});*/
+
+// Pääreitti - Etusivu (Tekstipohjainen yhteenveto, ei API-kutsuja)
+app.get('/', (req, res) => {
+  res.render('index', {
+    title: 'Etusivu',
+    organization: GITHUB_ORG
+  });
 });
 
 // Settings route - Application settings and configuration
@@ -1817,29 +2418,19 @@ app.get('/django', async (req, res) => {
       }
     }
 
-        // Analyze Django versions with EOL data
+    // Analyze Django versions
         const versionStats = {};
-        const eolStats = { eol: 0, supported: 0, outdated: 0, unknown: 0 };
-        
         djangoRepos.forEach(repo => {
           const version = repo.django_version;
           versionStats[version] = (versionStats[version] || 0) + 1;
-          
-          // Check EOL status
-          const eolInfo = checkDjangoEOL(version);
-          eolStats[eolInfo.status] = (eolStats[eolInfo.status] || 0) + 1;
         });
 
     const sortedVersions = Object.entries(versionStats)
       .sort(([,a], [,b]) => b - a)
-      .map(([version, count]) => {
-        const eolInfo = checkDjangoEOL(version);
-        return { 
+      .map(([version, count]) => ({ 
           version, 
-          count, 
-          eol_info: eolInfo 
-        };
-      });
+        count
+      }));
 
     console.log(`🐍 Django-repositoryt: ${djangoRepos.length} kpl`);
     console.log(`📊 Eri Django-versioita: ${sortedVersions.length} kpl`);
@@ -1850,7 +2441,6 @@ app.get('/django', async (req, res) => {
       djangoRepos: djangoRepos,
       noDjangoRepos: noDjangoRepos,
       versionStats: sortedVersions,
-      eolStats: eolStats,
       stats: {
         totalRepos: githubRepos.length,
         pythonRepos: pythonRepos.length,
@@ -1858,8 +2448,7 @@ app.get('/django', async (req, res) => {
         noDjangoRepos: noDjangoRepos.length,
         uniqueVersions: sortedVersions.length
       },
-      getLanguageColor: getLanguageColor,
-      checkDjangoEOL: checkDjangoEOL
+      getLanguageColor: getLanguageColor
     });
 
   } catch (error) {
@@ -1960,7 +2549,7 @@ app.get('/react', async (req, res) => {
   }
 });
 
-// Drupal route - Drupal applications page
+/* Legacy drupal removed - handled by new architecture
 app.get('/drupal', async (req, res) => {
   try {
     if (!GITHUB_TOKEN) {
@@ -2046,10 +2635,104 @@ app.get('/drupal', async (req, res) => {
       message: 'Virhe Drupal-sivun latauksessa',
       error: { status: 500, stack: error.stack }
     });
+});*/
+
+// WordPress route - WordPress sites page
+app.get('/wordpress', async (req, res) => {
+  try {
+    if (!GITHUB_TOKEN) {
+      return res.render('error', {
+        message: 'GitHub API konfiguraatio puuttuu. Tarkista .env tiedosto.',
+        error: { status: 500 }
+      });
+    }
+
+    console.log('📝 Aloitetaan WordPress-sivun lataus...');
+    
+    // Get all repositories
+    const githubRepos = await getRecentRepositories();
+    console.log(`📦 GitHub repot haettu: ${githubRepos.length} kpl`);
+
+    const phpRepos = githubRepos.filter(repo => repo.language === 'PHP');
+    console.log(`🌐 PHP-repositoryt: ${phpRepos.length} kpl`);
+    
+    const wordpressRepos = [];
+    const noWordPressRepos = [];
+    
+    const batchSize = 10;
+    for (let i = 0; i < phpRepos.length; i += batchSize) {
+      const batch = phpRepos.slice(i, i + batchSize);
+      console.log(`📦 Käsitellään WordPress-batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(phpRepos.length/batchSize)}`);
+      
+      const batchResults = await Promise.allSettled(
+        batch.map(async (repo) => {
+          const wordpressVersion = await getWordPressDataForRepo(repo);
+          return { ...repo, wordpress_version: wordpressVersion };
+        })
+      );
+      
+      batchResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          const repo = result.value;
+          if (repo.wordpress_version) {
+            wordpressRepos.push(repo);
+          } else {
+            noWordPressRepos.push(repo);
+          }
+        } else {
+          noWordPressRepos.push(batch[index]);
+        }
+      });
+      
+      if (i + batchSize < phpRepos.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    // Analyze WordPress versions
+    const versionStats = {};
+    wordpressRepos.forEach(repo => {
+      const version = repo.wordpress_version;
+      versionStats[version] = (versionStats[version] || 0) + 1;
+    });
+
+    const sortedVersions = Object.entries(versionStats)
+      .sort(([,a], [,b]) => b - a)
+      .map(([version, count]) => ({ 
+          version, 
+        count
+      }));
+
+    console.log(`📝 WordPress-repositoryt: ${wordpressRepos.length} kpl`);
+    console.log(`📊 Eri WordPress-versioita: ${sortedVersions.length} kpl`);
+
+    res.render('wordpress', {
+      title: 'WordPress - PHP-sivustot',
+      organization: GITHUB_ORG,
+      wordpressRepos: wordpressRepos,
+      noWordPressRepos: noWordPressRepos,
+      versionStats: sortedVersions,
+      stats: {
+        totalRepos: githubRepos.length,
+        phpRepos: phpRepos.length,
+        wordpressRepos: wordpressRepos.length,
+        noWordPressRepos: noWordPressRepos.length,
+        uniqueVersions: sortedVersions.length
+      },
+      getLanguageColor: getLanguageColor
+    });
+
+  } catch (error) {
+    console.error('❌ Virhe WordPress-sivun latauksessa:', error);
+    res.render('error', {
+      message: 'Virhe WordPress-sivun latauksessa',
+      error: { status: 500, stack: error.stack }
+    });
   }
 });
 
 // Dependabot route - Security alerts page
+/* Legacy dependabot removed - handled by new architecture
 app.get('/dependabot', async (req, res) => {
   try {
     if (!GITHUB_TOKEN) {
@@ -2061,55 +2744,171 @@ app.get('/dependabot', async (req, res) => {
 
     console.log('🛡️ Aloitetaan Dependabot-sivun lataus...');
     
-    // Get all repositories
-    const githubRepos = await getRecentRepositories();
-    console.log(`📦 GitHub repot haettu: ${githubRepos.length} kpl`);
+    // Check if we should refresh data from API or use cached data
+    const refreshData = req.query.refresh === 'true';
+    let repositories;
+    
+    if (refreshData) {
+      console.log('🔄 Päivitetään tiedot GitHub API:sta...');
+      repositories = await getRecentRepositories();
+      console.log(`📦 Repot haettu onnistuneesti: ${repositories.length} kpl`);
+    } else {
+      console.log('💾 Käytetään tietokantaan tallennettuja tietoja...');
+      repositories = await cacheManager.getRepositories();
+      console.log(`📦 Repot haettu tietokannasta: ${repositories.length} kpl`);
+      
+      // Jos tietokannassa ei ole tietoja, hae API:sta
+      if (repositories.length === 0) {
+        console.log('💾 Tietokanta tyhjä, haetaan tiedot API:sta...');
+        repositories = await getRecentRepositories();
+        console.log(`📦 Repot haettu API:sta: ${repositories.length} kpl`);
+      }
+    }
+    
+    // Apply repository limit for testing if set
+    if (MAX_REPOSITORIES && MAX_REPOSITORIES > 0) {
+      repositories = repositories.slice(0, MAX_REPOSITORIES);
+      console.log(`🧪 TESTTILA: Rajoitettu ${MAX_REPOSITORIES} repositoryyn (alkuperäinen määrä: ${repositories.length})`);
+    }
+    
+    console.log(`📦 GitHub repot haettu: ${repositories.length} kpl`);
 
     const reposWithAlerts = [];
     const reposWithoutAlerts = [];
     
-    const batchSize = 5; // Smaller batch for Dependabot due to API limits
-    for (let i = 0; i < githubRepos.length; i += batchSize) {
-      const batch = githubRepos.slice(i, i + batchSize);
-      console.log(`📦 Käsitellään Dependabot-batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(githubRepos.length/batchSize)}`);
-      
-      const batchResults = await Promise.allSettled(
-        batch.map(async (repo) => {
-          const dependabotCount = await getDependabotDataForRepo(repo);
-          return { ...repo, dependabot_critical_count: dependabotCount };
-        })
-      );
-      
-      batchResults.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          const repo = result.value;
-          if (repo.dependabot_critical_count > 0) {
-            reposWithAlerts.push(repo);
+    // Check if we have complete data in database
+    const hasCompleteData = repositories.length > 0 && repositories.every(repo => 
+      repo.dependabot_critical_count !== undefined
+    );
+    
+    // Only fetch dependabot and owner data if refresh requested or data is missing
+    const needToFetchData = refreshData || !hasCompleteData;
+    
+    console.log(`📊 Has complete data: ${hasCompleteData}, Need to fetch: ${needToFetchData}`);
+    
+    if (needToFetchData) {
+      console.log('🔄 Haetaan Dependabot-tiedot API:sta...');
+      const batchSize = 5; // Smaller batch for Dependabot due to API limits
+      for (let i = 0; i < repositories.length; i += batchSize) {
+        const batch = repositories.slice(i, i + batchSize);
+        console.log(`📦 Käsitellään Dependabot-batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(repositories.length/batchSize)}`);
+        
+        const batchResults = await Promise.allSettled(
+          batch.map(async (repo) => {
+            // Fetch both Dependabot and team data in parallel
+            const [dependabotCount, teamData] = await Promise.all([
+              getDependabotDataForRepo(repo),
+              getTeamDataForRepo(repo)
+            ]);
+            console.log(`📦 Repository: ${repo.name} - Dependabot alerts: ${dependabotCount}, Teams: ${teamData.all_teams.length > 0 ? teamData.all_teams.join(', ') : 'none'}`);
+            return { 
+              ...repo, 
+              dependabot_critical_count: dependabotCount,
+              owner: teamData.owner || repo.owner,
+              team: teamData.team || null,
+              all_teams: teamData.all_teams || []
+            };
+          })
+        );
+        
+        batchResults.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            const repo = result.value;
+            // Update the original repository in the array with new data (including teams)
+            const originalIndex = i + index;
+            if (originalIndex < repositories.length) {
+              repositories[originalIndex] = repo;
+            }
+            if (repo.dependabot_critical_count > 0) {
+              reposWithAlerts.push(repo);
+            } else {
+              reposWithoutAlerts.push(repo);
+            }
           } else {
-            reposWithoutAlerts.push(repo);
+            reposWithoutAlerts.push(batch[index]);
           }
+        });
+        
+        if (i + batchSize < repositories.length) {
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Longer delay for Dependabot
+        }
+      }
+      
+      // Update database with new data (now includes team data)
+      console.log('💾 Päivitetään tietokantaa uusilla tiedoilla...');
+      for (const repo of repositories) {
+        if (repo.all_teams && repo.all_teams.length > 0) {
+          console.log(`💾 Tallennetaan repo ${repo.name} tiimeillä: ${repo.all_teams.join(', ')}`);
+        }
+        await cacheManager.saveRepository(repo);
+      }
+    } else {
+      console.log('💾 Käytetään tallennettuja Dependabot ja owner-tietoja...');
+      // Use cached data
+      repositories.forEach(repo => {
+        if (repo.dependabot_critical_count > 0) {
+          reposWithAlerts.push(repo);
         } else {
-          reposWithoutAlerts.push(batch[index]);
+          reposWithoutAlerts.push(repo);
         }
       });
-      
-      if (i + batchSize < githubRepos.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Longer delay for Dependabot
-      }
     }
 
     const totalCriticalAlerts = reposWithAlerts.reduce((sum, repo) => sum + repo.dependabot_critical_count, 0);
 
+    // Collect unique teams from all repositories
+    const teamsSet = new Set();
+    let reposWithTeams = 0;
+    repositories.forEach(repo => {
+      // Parse all_teams if it's a string (from database)
+      let allTeams = repo.all_teams;
+      if (typeof allTeams === 'string') {
+        try {
+          allTeams = JSON.parse(allTeams);
+        } catch (e) {
+          // If parsing fails, try as empty array
+          allTeams = [];
+        }
+      }
+      
+      // Debug logging for first few repos
+      if (reposWithTeams < 3 && (allTeams?.length > 0 || repo.team)) {
+        console.log(`🔍 Debug repo ${repo.name}: all_teams type=${typeof repo.all_teams}, allTeams=${JSON.stringify(allTeams)}, team=${repo.team}`);
+      }
+      
+      // Check all_teams array first (if it exists and is an array)
+      if (allTeams && Array.isArray(allTeams) && allTeams.length > 0) {
+        allTeams.forEach(team => {
+          if (team && typeof team === 'string' && team.trim()) {
+            teamsSet.add(team.trim());
+          }
+        });
+        reposWithTeams++;
+      }
+      // Fallback to team field if all_teams is empty
+      else if (repo.team && typeof repo.team === 'string' && repo.team.trim()) {
+        teamsSet.add(repo.team.trim());
+        reposWithTeams++;
+      }
+    });
+    const teams = Array.from(teamsSet).sort();
+
     console.log(`🛡️ Repositoryt ilmoituksilla: ${reposWithAlerts.length} kpl`);
     console.log(`🛡️ Yhteensä kriittisiä ilmoituksia: ${totalCriticalAlerts} kpl`);
+    console.log(`👥 Löydettiin ${teams.length} uniikkia tiimiä (${reposWithTeams}/${repositories.length} repossa on tiimi-tietoja)`);
+    if (teams.length > 0) {
+      console.log(`👥 Tiimit: ${teams.join(', ')}`);
+    }
+    console.log(`🔍 Debug: teams array type: ${Array.isArray(teams) ? 'Array' : typeof teams}, length: ${teams ? teams.length : 'N/A'}`);
 
     res.render('dependabot', {
       title: 'Dependabot - Turvallisuusilmoitukset',
       organization: GITHUB_ORG,
       reposWithAlerts: reposWithAlerts,
       reposWithoutAlerts: reposWithoutAlerts,
+      teams: teams,
       stats: {
-        totalRepos: githubRepos.length,
+        totalRepos: repositories.length,
         reposWithAlerts: reposWithAlerts.length,
         reposWithoutAlerts: reposWithoutAlerts.length,
         totalCriticalAlerts: totalCriticalAlerts
@@ -2124,9 +2923,118 @@ app.get('/dependabot', async (req, res) => {
       error: { status: 500, stack: error.stack }
     });
   }
+});*/
+
+// Commits route - Moved to new architecture (routes/commits.js)
+// Legacy route kept for backward compatibility
+app.get('/commits-legacy', async (req, res) => {
+  try {
+    if (!GITHUB_TOKEN) {
+      return res.render('error', {
+        message: 'GitHub API konfiguraatio puuttuu. Tarkista .env tiedosto.',
+        error: { status: 500 }
+      });
+    }
+
+    console.log('📝 Aloitetaan Commits-sivun lataus...');
+    
+    // Check if we should refresh data from API or use cached data
+    const refreshData = req.query.refresh === 'true';
+    let repositories;
+    
+    if (refreshData) {
+      console.log('🔄 Päivitetään tiedot GitHub API:sta...');
+      repositories = await getRecentRepositories();
+      console.log(`📦 Repot haettu onnistuneesti: ${repositories.length} kpl`);
+    } else {
+      console.log('💾 Käytetään tietokantaan tallennettuja tietoja...');
+      repositories = await cacheManager.getRepositories();
+      console.log(`📦 Repot haettu tietokannasta: ${repositories.length} kpl`);
+      
+      // Jos tietokannassa ei ole tietoja, hae API:sta
+      if (repositories.length === 0) {
+        console.log('💾 Tietokanta tyhjä, haetaan tiedot API:sta...');
+        repositories = await getRecentRepositories();
+        console.log(`📦 Repot haettu API:sta: ${repositories.length} kpl`);
+      }
+    }
+    
+    // Apply repository limit for testing if set
+    if (MAX_REPOSITORIES && MAX_REPOSITORIES > 0) {
+      repositories = repositories.slice(0, MAX_REPOSITORIES);
+      console.log(`🧪 TESTTILA: Rajoitettu ${MAX_REPOSITORIES} repositoryyn (alkuperäinen määrä: ${repositories.length})`);
+    }
+    
+    // Suodata pois arkistoidut repositoryt
+    const archivedCount = repositories.filter(repo => repo.archived).length;
+    repositories = repositories.filter(repo => !repo.archived);
+    console.log(`🗃️ Arkistoitu: ${archivedCount}, Aktiivinen: ${repositories.length}`);
+    console.log(`📦 GitHub repot haettu: ${repositories.length} kpl`);
+    
+    // Hae viimeisimmät commitit kaikille repositoryille
+    const reposWithCommits = [];
+    const batchSize = 5;
+    
+    console.log('🔄 Haetaan viimeisimmät commitit...');
+    for (let i = 0; i < repositories.length; i += batchSize) {
+      const batch = repositories.slice(i, i + batchSize);
+      console.log(`📦 Käsitellään Commits-batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(repositories.length/batchSize)}`);
+      
+      const batchResults = await Promise.allSettled(
+        batch.map(async (repo) => {
+          const ownerLogin = getOwnerLogin(repo);
+          const commitData = await getLatestCommitData(ownerLogin, repo.name);
+          return { 
+            ...repo,
+            latest_commit: commitData
+          };
+        })
+      );
+      
+      batchResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          reposWithCommits.push(result.value);
+        }
+      });
+      
+      // Small delay between batches
+      if (i + batchSize < repositories.length) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    // Järjestä viimeisimmän commitin päivämäärän mukaan
+    reposWithCommits.sort((a, b) => {
+      const dateA = a.latest_commit?.date ? new Date(a.latest_commit.date) : new Date(0);
+      const dateB = b.latest_commit?.date ? new Date(b.latest_commit.date) : new Date(0);
+      return dateB - dateA; // Uusin ensin
+    });
+    
+    console.log(`✅ Commits-sivu valmis: ${reposWithCommits.length} repositoryä`);
+
+    res.render('commits', {
+      title: 'Commits - Viimeisimmät commitit',
+      organization: GITHUB_ORG,
+      repositories: reposWithCommits,
+      stats: {
+        totalRepos: reposWithCommits.length,
+        reposWithCommits: reposWithCommits.filter(r => r.latest_commit?.author).length,
+        reposWithoutCommits: reposWithCommits.filter(r => !r.latest_commit?.author).length
+      },
+      getLanguageColor: getLanguageColor
+    });
+
+  } catch (error) {
+    console.error('❌ Virhe Commits-sivun latauksessa:', error);
+    res.render('error', {
+      message: 'Virhe Commits-sivun latauksessa',
+      error: { status: 500, stack: error.stack }
+    });
+  }
 });
 
 // HDS route - Helsinki Design System page
+/* Legacy hds removed - handled by new architecture
 app.get('/hds', async (req, res) => {
   try {
     if (!GITHUB_TOKEN) {
@@ -2232,7 +3140,7 @@ app.get('/hds', async (req, res) => {
       error: { status: 500, stack: error.stack }
     });
   }
-});
+});*/
 
 // Dockerfile route - Docker information page
 app.get('/dockerfile', async (req, res) => {
@@ -2255,8 +3163,8 @@ app.get('/dockerfile', async (req, res) => {
 
     console.log(`🔍 Aloitetaan Docker-tietojen haku ${githubRepos.length} repositorylle...`);
     
-    // Fetch Docker data for all repositories
-    console.log(`🐳 Haetaan Docker-tiedot ${githubRepos.length} repositorylle...`);
+  // Fetch Dockerfile presence for all repositories (lightweight)
+  console.log(`🐳 Haetaan Dockerfile-tiedosto (jos löytyy) ${githubRepos.length} repositorylle...`);
     const dockerRepos = [];
     const noDockerRepos = [];
     
@@ -2269,13 +3177,18 @@ app.get('/dockerfile', async (req, res) => {
       const batchResults = await Promise.allSettled(
         batch.map(async (repo) => {
           console.log(`🔄 Käsitellään repo: ${repo.name}`);
-          const dockerData = await getDockerDataForRepo(repo);
-          console.log(`📊 Docker-tulos reposta ${repo.name}: ${dockerData ? 'Löytyi' : 'Ei Dockerfileä'}`);
+          const single = await getSingleDockerfileForRepo(repo);
+          if (single) {
+            const primaryBaseImage = single.baseImages && single.baseImages.length > 0 ? single.baseImages[0].image : null;
+            console.log(`📊 Dockerfile löytyi (${single.path}) reposta ${repo.name}${primaryBaseImage ? `, base image: ${primaryBaseImage}` : ''}`);
           return {
             ...repo,
-            docker_data: dockerData,
-            docker_base_image: dockerData ? dockerData.primary : null
+              docker_data: { dockerfiles: [single.path] },
+              docker_base_image: primaryBaseImage
           };
+          }
+          console.log(`❌ Ei Dockerfileä: ${repo.name}`);
+          return { ...repo, docker_data: null, docker_base_image: null };
         })
       );
       
@@ -2283,9 +3196,9 @@ app.get('/dockerfile', async (req, res) => {
       batchResults.forEach((result, index) => {
         if (result.status === 'fulfilled') {
           const repo = result.value;
-          if (repo.docker_base_image) {
+          if (repo.docker_base_image || (repo.docker_data && repo.docker_data.dockerfiles && repo.docker_data.dockerfiles.length > 0)) {
             dockerRepos.push(repo);
-            console.log(`✅ Docker-repo lisätty: ${repo.name}`);
+            console.log(`✅ Dockerfile löydetty: ${repo.name}`);
           } else {
             noDockerRepos.push(repo);
             console.log(`❌ Ei Dockerfileä: ${repo.name}`);
@@ -2304,25 +3217,11 @@ app.get('/dockerfile', async (req, res) => {
       }
     }
 
-    // Analyze Docker base images and EOL status
+    // Analyze Docker base images (from primary Dockerfile only)
     const baseImageStats = {};
-    const eolStats = { eol: 0, supported: 0, unknown: 0 };
-    
     dockerRepos.forEach(repo => {
-      const baseImage = repo.docker_base_image;
+      const baseImage = repo.docker_base_image || 'unknown';
       baseImageStats[baseImage] = (baseImageStats[baseImage] || 0) + 1;
-      
-      // Check EOL status
-      const eolInfo = checkDockerEOL(baseImage);
-      repo.docker_eol = eolInfo;
-      
-      if (eolInfo.status === 'eol') {
-        eolStats.eol++;
-      } else if (eolInfo.status === 'supported') {
-        eolStats.supported++;
-      } else {
-        eolStats.unknown++;
-      }
     });
 
     // Sort by usage count
@@ -2330,14 +3229,11 @@ app.get('/dockerfile', async (req, res) => {
       .sort(([,a], [,b]) => b - a)
       .map(([image, count]) => ({ 
         image, 
-        count,
-        eol: checkDockerEOL(image)
+        count
       }));
 
     console.log(`🐳 Docker-repositoryt: ${dockerRepos.length} kpl`);
     console.log(`📊 Eri base image -tyyppejä: ${sortedBaseImages.length} kpl`);
-    console.log(`⚠️ EOL base imageit: ${eolStats.eol} kpl`);
-    console.log(`✅ Tuetut base imageit: ${eolStats.supported} kpl`);
 
     res.render('dockerfile', {
       title: 'Dockerfile - Docker Repositoryt',
@@ -2345,15 +3241,13 @@ app.get('/dockerfile', async (req, res) => {
       dockerRepos: dockerRepos,
       noDockerRepos: noDockerRepos,
       baseImageStats: sortedBaseImages,
-      eolStats: eolStats,
       stats: {
         totalRepos: githubRepos.length,
         dockerRepos: dockerRepos.length,
         noDockerRepos: noDockerRepos.length,
         uniqueBaseImages: sortedBaseImages.length
       },
-      getLanguageColor: getLanguageColor,
-      checkDockerEOL: checkDockerEOL
+      getLanguageColor: getLanguageColor
     });
 
   } catch (error) {
@@ -2366,14 +3260,7 @@ app.get('/dockerfile', async (req, res) => {
 });
 
 // API reitti repojen hakuun
-app.get('/api/repos', async (req, res) => {
-  try {
-    const repositories = await getRecentRepositories();
-    res.json(repositories);
-  } catch (error) {
-    res.status(500).json({ error: 'Virhe repojen haussa' });
-  }
-});
+// /api/repos route moved to new architecture (routes/repositories.js)
 
 // Rate limit status endpoint
 app.get('/api/rate-limit', (req, res) => {
@@ -2389,25 +3276,502 @@ app.get('/api/rate-limit', (req, res) => {
 
 // Cache status endpoint
 app.get('/api/cache', async (req, res) => {
-  const stats = await cacheManager.getStats();
+  try {
+    const stats = dependencies.cacheManager.getStats();
+    const info = await dependencies.cacheManager.getInfo();
+    const cacheRepoStats = await dependencies.cacheRepository.getStats();
+    
   res.json({
     ...stats,
-    memoryUsageMB: Math.round(stats.memoryUsage / 1024 / 1024),
+      info: info,
+      repository: cacheRepoStats,
+      memoryUsageMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
     uptime: process.uptime()
   });
+  } catch (error) {
+    res.status(500).json({ error: 'Cache stats error', message: error.message });
+  }
+});
+
+// Note: New architecture routes are registered in initializeDependencies() callback
+// They are registered after dependencies are initialized to avoid null reference errors
+// See line ~909-914 for route registration
+
+// Legacy routes (kept for backward compatibility during migration)
+// Note: /commits, /teams, /collaborators, /issues, and /pull-requests routes are now handled by new architecture
+
+/* Legacy users removed - handled by new architecture
+app.get('/users', async (req, res) => {
+  try {
+    const org = req.query.org || GITHUB_ORG;
+    const members = await githubClient.getAllPages(`/orgs/${org}/members`, { perPage: 100, maxPages: 5 });
+    res.render('users', { title: 'Users', users: members });
+  } catch (err) {
+    req.logger?.error('view.users.error', { message: err.message });
+    res.render('users', { title: 'Users', users: [] });
+  }
+});*/
+
+/* Legacy languages removed - handled by new architecture
+app.get('/languages', async (req, res) => {
+  try {
+    if (!GITHUB_TOKEN) {
+      return res.render('error', {
+        message: 'GitHub API konfiguraatio puuttuu. Tarkista .env tiedosto.',
+        error: { status: 500 }
+      });
+    }
+    
+    // Check if we should refresh data from API or use cached data
+    const refreshData = req.query.refresh === 'true';
+    let repositories;
+    
+    if (refreshData) {
+      try {
+        repositories = await getRecentRepositories();
+      } catch (error) {
+        console.error('❌ Virhe repojen haussa:', error.message);
+        repositories = [];
+      }
+    } else {
+      try {
+        repositories = await cacheManager.getRepositories();
+        
+        // Jos tietokannassa ei ole tietoja, hae API:sta
+        if (repositories.length === 0) {
+          try {
+            repositories = await getRecentRepositories();
+          } catch (error) {
+            console.error('❌ Virhe repojen haussa:', error.message);
+            repositories = [];
+          }
+        }
+      } catch (dbError) {
+        console.error('❌ Virhe tietokantaan tallennettujen tietojen haussa:', dbError.message);
+        repositories = [];
+      }
+    }
+    
+    // Laske yhteenvedot nopeasti - yksinkertaistettu logiikka
+    const languageCounts = { PHP: 0, JavaScript: 0, Python: 0, Java: 0 };
+    const frameworkCounts = { React: 0, Django: 0, Drupal: 0, WordPress: 0 };
+    
+    for (const repo of repositories) {
+      const lang = repo.language;
+      const repoName = repo.name.toLowerCase();
+      
+      // Kieli-yhteenvedot - vain tärkeimmät tarkistukset
+      if (lang === 'PHP') languageCounts.PHP++;
+      else if (lang === 'JavaScript' || lang === 'TypeScript') languageCounts.JavaScript++;
+      else if (lang === 'Python') languageCounts.Python++;
+      else if (lang === 'Java') languageCounts.Java++;
+      
+      // Framework-yhteenvedot - vain olemassa olevat versiot tai selkeät nimet
+      if (repo.react_version || repoName.includes('react')) frameworkCounts.React++;
+      if (repo.django_version || repoName.includes('django')) frameworkCounts.Django++;
+      if (repo.drupal_version || repoName.includes('drupal')) frameworkCounts.Drupal++;
+      if (repoName.includes('wordpress') || repoName.includes('wp')) frameworkCounts.WordPress++;
+    }
+    
+    res.render('languages', {
+      title: 'Languages',
+      organization: GITHUB_ORG,
+      repositories: repositories,
+      totalRepos: repositories.length,
+      languageCounts: languageCounts,
+      frameworkCounts: frameworkCounts,
+      getLanguageColor: getLanguageColor
+    });
+  } catch (error) {
+    console.error('Virhe sivun latauksessa:', error);
+    
+    // Jos on 502-virhe, näytä ystävällisempi viesti
+    if (error.response?.status === 502) {
+      res.render('error', {
+        message: 'GitHub API on väliaikaisesti poissa käytöstä (502 Bad Gateway). Yritä myöhemmin uudelleen.',
+        error: { status: 502 }
+      });
+    } else {
+      res.render('error', {
+        message: 'Virhe repojen latauksessa',
+        error: { status: 500, stack: error.stack }
+      });
+    }
+  }
+});*/
+
+// Commits route - Moved to new architecture (routes/commits.js)
+// Legacy route removed - handled by new architecture
+
+// Teams route - Moved to new architecture (routes/teams.js)
+// Legacy route removed - handled by new architecture
+
+// Collaborators route - Moved to new architecture (routes/collaborators.js)
+// Legacy route removed - handled by new architecture
+
+/* Legacy branches removed - handled by new architecture
+app.get('/branches', (req, res) => {
+  // Fetch branches for each repository in the organization
+  (async () => {
+    try {
+      const org = req.query.org || GITHUB_ORG;
+      const repos = await githubClient.getAllPages(`/orgs/${org}/repos`, { perPage: 100, maxPages: 2 });
+      const results = [];
+      for (const r of repos) {
+        try {
+          const branches = await githubClient.getAllPages(`/repos/${r.owner.login}/${r.name}/branches`, { perPage: 100, maxPages: 1 });
+          results.push({
+            repo: r.name,
+            fullName: r.full_name,
+            defaultBranch: r.default_branch,
+            branchCount: branches.length,
+            branches: branches.map(b => ({ name: b.name, protected: !!b.protected })),
+            htmlUrl: r.html_url
+          });
+        } catch (e) {
+          req.logger?.warn('branches.fetch.failed', { repo: r.full_name, message: e.message });
+        }
+      }
+      res.render('branches', { title: 'Branches', repos: results });
+    } catch (err) {
+      req.logger?.error('view.branches.error', { message: err.message });
+      res.render('branches', { title: 'Branches', repos: [] });
+    }
+  })();
+});*/
+
+/* Legacy contents removed - handled by new architecture
+app.get('/contents', (req, res) => {
+  // Top-level contents analysis for each repo
+  (async () => {
+    try {
+      const org = req.query.org || GITHUB_ORG;
+      const repos = await githubClient.getAllPages(`/orgs/${org}/repos`, { perPage: 100, maxPages: 2 });
+      const results = [];
+      for (const r of repos) {
+        try {
+          const { data } = await githubClient.request('GET', `/repos/${r.owner.login}/${r.name}/contents`, {});
+          const items = Array.isArray(data) ? data : [];
+          const summary = {
+            hasReadme: items.some(i => /README\.md/i.test(i.name)),
+            hasLicense: items.some(i => /LICENSE/i.test(i.name)),
+            hasDockerfile: items.some(i => i.name === 'Dockerfile'),
+            hasPackageJson: items.some(i => i.name === 'package.json'),
+            hasRequirementsTxt: items.some(i => i.name === 'requirements.txt'),
+            workflows: items.some(i => i.name === '.github'),
+            dirs: items.filter(i => i.type === 'dir').length,
+            files: items.filter(i => i.type === 'file').length,
+          };
+          results.push({
+            repo: r.name,
+            fullName: r.full_name,
+            htmlUrl: r.html_url,
+            defaultBranch: r.default_branch,
+            summary,
+            items: items.slice(0, 50).map(i => ({ name: i.name, type: i.type, path: i.path, html_url: i.html_url }))
+          });
+        } catch (e) {
+          req.logger?.warn('contents.fetch.failed', { repo: r.full_name, message: e.message });
+        }
+      }
+      res.render('contents', { title: 'Contents', repos: results });
+    } catch (err) {
+      req.logger?.error('view.contents.error', { message: err.message });
+      res.render('contents', { title: 'Contents', repos: [] });
+    }
+  })();
+});*/
+
+/* Legacy releases removed - handled by new architecture
+app.get('/releases', async (req, res) => {
+  try {
+    const org = req.query.org || GITHUB_ORG;
+    const repos = await githubClient.getAllPages(`/orgs/${org}/repos`, { perPage: 100, maxPages: 2 });
+    const all = [];
+    for (const r of repos) {
+      try {
+        const releases = await githubClient.request('GET', `/repos/${r.owner.login}/${r.name}/releases`, { params: { per_page: 5 } });
+        (releases.data || []).forEach(x => all.push({ repo: r.name, ...x }));
+      } catch (_) { // ignore repos without releases
+      }
+    }
+    res.render('releases', { title: 'Releases', releases: all });
+  } catch (err) {
+    req.logger?.error('view.releases.error', { message: err.message });
+    res.render('releases', { title: 'Releases', releases: [] });
+  }
+});*/
+
+// Pull Requests route - Moved to new architecture (routes/pullRequests.js)
+// Legacy route removed - handled by new architecture
+
+// Issues route - Moved to new architecture (routes/issues.js)
+// Legacy route removed - handled by new architecture
+
+app.get('/code-scanning', async (req, res) => {
+  const org = req.query.org || GITHUB_ORG;
+  const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+  const perPage = Math.min(Math.max(parseInt(req.query.per_page || '50', 10), 1), 100);
+  const filters = {
+    state: req.query.state || '',
+    severity: req.query.severity || '',
+    tool: req.query.tool || '',
+    repo: req.query.repo || '',
+    q: req.query.q || ''
+  };
+
+  function toParamsForApi() {
+    const p = { page, per_page: perPage };
+    if (filters.state) p.state = filters.state; // open | closed
+    if (filters.severity) p.severity = filters.severity; // critical|high|medium|low
+    if (filters.tool) p.tool_name = filters.tool;
+    return p;
+  }
+
+  try {
+    let items = [];
+    let total = 0;
+    let summary = { total: 0, open: 0, dismissed: 0, critical: 0, high: 0, medium: 0, low: 0 };
+    let fallbackUsed = false;
+
+    // Prefer org endpoint
+    try {
+      // Simple in-memory cache per filter set
+      const cacheKey = `codescan:${org}:${JSON.stringify({ p: toParamsForApi(), repo: filters.repo, q: filters.q })}`;
+      const cached = require('./src/integrations/cache/memoryCache').defaultCache.get(cacheKey);
+      if (cached) {
+        items = cached.items;
+        total = cached.total;
+      } else {
+        const resp = await githubClient.request('GET', `/orgs/${org}/code-scanning/alerts`, { params: toParamsForApi() });
+        items = Array.isArray(resp.data) ? resp.data : [];
+        total = items.length + (page - 1) * perPage;
+        require('./src/integrations/cache/memoryCache').defaultCache.set(cacheKey, { items, total }, 600000);
+      }
+    } catch (e) {
+      // Fallback: per-repo aggregation for this page
+      fallbackUsed = true;
+      const repos = await githubClient.getAllPages(`/orgs/${org}/repos`, { params: { type: 'all' }, perPage: 100, maxPages: 1 });
+      for (const r of repos) {
+        if (filters.repo && r.full_name !== filters.repo) continue;
+        try {
+          const params = toParamsForApi();
+          const cacheKeyRepo = `codescan_repo:${r.full_name}:${JSON.stringify(params)}`;
+          const cacheLayer = require('./src/integrations/cache/memoryCache').defaultCache;
+          const c = cacheLayer.get(cacheKeyRepo);
+          if (c) {
+            items.push(...c);
+          } else {
+            const rresp = await githubClient.request('GET', `/repos/${r.owner.login}/${r.name}/code-scanning/alerts`, { params });
+            const arr = Array.isArray(rresp.data) ? rresp.data : [];
+            cacheLayer.set(cacheKeyRepo, arr, 300000);
+            items.push(...arr);
+          }
+          if (items.length >= perPage) break;
+        } catch (_er) {}
+      }
+      total = items.length;
+    }
+
+    // Map and filter client-side text search
+    const normQ = (filters.q || '').toLowerCase();
+    const mapped = items.map(a => {
+      const repoFullName = a.repository?.full_name || a.repository?.name || a.repository?.html_url?.split('/').slice(-2).join('/') || '';
+      const repoHtmlUrl = a.repository?.html_url || (a.html_url ? a.html_url.split('/security-code-scanning')[0] : '');
+      return {
+        repoFullName,
+        repoHtmlUrl,
+        ruleId: a.rule?.id || a.rule_id || '',
+        ruleDescription: a.rule?.description || a.rule?.name || '',
+        severity: a.rule?.severity || a.severity || '',
+        state: a.state,
+        createdAt: a.created_at || a.most_recent_instance?.created_at,
+        updatedAt: a.updated_at || a.most_recent_instance?.updated_at,
+        htmlUrl: a.html_url
+      };
+    }).filter(a => {
+      if (!normQ) return true;
+      const txt = `${a.repoFullName} ${a.ruleId} ${a.ruleDescription}`.toLowerCase();
+      return txt.includes(normQ);
+    });
+
+    // Summary from current page
+    for (const a of mapped) {
+      summary.total += 1;
+      if (a.state === 'open') summary.open += 1; else summary.dismissed += 1;
+      if (a.severity === 'critical') summary.critical += 1;
+      else if (a.severity === 'high') summary.high += 1;
+      else if (a.severity === 'medium') summary.medium += 1;
+      else if (a.severity === 'low') summary.low += 1;
+    }
+
+    const totalPages = Math.max(1, Math.ceil((total || summary.total) / perPage));
+
+    req.logger?.info('codescan.view.debug', {
+      org,
+      filters,
+      page,
+      perPage,
+      returned: mapped.length,
+      summary,
+      fallbackUsed
+    });
+
+    res.render('code_scanning', {
+      title: 'Code Scanning',
+      alerts: mapped.slice(0, perPage),
+      filters,
+      page,
+      perPage,
+      total: total || summary.total,
+      totalPages,
+      summary,
+      fallbackUsed
+    });
+  } catch (err) {
+    req.logger?.error('view.code_scanning.error', { message: err.message });
+    res.render('code_scanning', { title: 'Code Scanning', alerts: [], filters: {}, page: 1, perPage: 50, total: 0, totalPages: 1, summary: { total: 0, open: 0, dismissed: 0, critical: 0, high: 0, medium: 0, low: 0 }, fallbackUsed: false });
+  }
+});
+
+app.get('/licenses', async (req, res) => {
+  try {
+    const org = req.query.org || GITHUB_ORG;
+    const includeArchived = req.query.include_archived === 'true';
+    const repos = await githubClient.getAllPages(`/orgs/${org}/repos`, { perPage: 100, maxPages: 10 });
+    const filtered = includeArchived ? repos : repos.filter(r => !r.archived);
+    const fetchedTotal = repos.length;
+    const archivedSkipped = includeArchived ? 0 : repos.filter(r => r.archived).length;
+    const analyzedPublic = filtered.filter(r => !r.private).length;
+    const analyzedPrivate = filtered.filter(r => r.private).length;
+    const fetchedPublic = repos.filter(r => !r.private).length;
+    const fetchedPrivate = repos.filter(r => r.private).length;
+    const fetchedForks = repos.filter(r => r.fork).length;
+    const fetchedArchived = repos.filter(r => r.archived).length;
+
+    req.logger?.info('licenses.fetch.debug', {
+      fetchedTotal,
+      fetchedPublic,
+      fetchedPrivate,
+      fetchedForks,
+      fetchedArchived,
+      includeArchived,
+      analyzedTotal: filtered.length,
+      analyzedPublic,
+      analyzedPrivate,
+      archivedSkipped
+    });
+
+    const countsBySpdx = new Map();
+    let withSpdx = 0;
+
+    const data = [];
+    for (const r of filtered) {
+      let licenseName = r.license?.name || null;
+      let rawSpdx = r.license?.spdx_id || null;
+      let spdx = rawSpdx && rawSpdx !== 'NOASSERTION' ? rawSpdx : null;
+
+      // Try to fetch detailed license if missing SPDX from metadata
+      if (!spdx) {
+        try {
+          const resp = await githubClient.request('GET', `/repos/${r.owner.login}/${r.name}/license`);
+          const lic = resp.data?.license;
+          if (lic) {
+            if (!licenseName) licenseName = lic.name || licenseName;
+            if (lic.spdx_id && lic.spdx_id !== 'NOASSERTION') spdx = lic.spdx_id;
+          }
+        } catch (_e) {
+          // Ignore not found or no license
+        }
+      }
+
+      const licenseLink = `${r.html_url}/blob/${r.default_branch || 'main'}/LICENSE`;
+      if (spdx) {
+        withSpdx += 1;
+        countsBySpdx.set(spdx, (countsBySpdx.get(spdx) || 0) + 1);
+      }
+
+      data.push({
+        fullName: r.full_name,
+        repoUrl: r.html_url,
+        licenseName,
+        spdx,
+        licenseLink: licenseName ? licenseLink : null
+      });
+    }
+    const total = filtered.length;
+    const unknown = total - withSpdx;
+    const breakdown = Array.from(countsBySpdx.entries())
+      .map(([spdx, count]) => ({ spdx, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+
+    res.render('licenses', {
+      title: 'Licenses',
+      licenses: data,
+      includeArchived,
+      summary: { total, withSpdx, unknown, breakdown, fetchedTotal, archivedSkipped, analyzedPublic, analyzedPrivate }
+    });
+  } catch (err) {
+    req.logger?.error('view.licenses.error', { message: err.message });
+    res.render('licenses', { title: 'Licenses', licenses: [], includeArchived: false, summary: { total: 0, withSpdx: 0, unknown: 0, breakdown: [], fetchedTotal: 0, archivedSkipped: 0, analyzedPublic: 0, analyzedPrivate: 0 } });
+  }
+});
+
+// Example endpoint using new GitHub client with retry + ETag cache + pagination
+app.get('/api/github/org-repos', async (req, res) => {
+  try {
+    const org = req.query.org || GITHUB_ORG;
+    const perPage = req.query.per_page ? parseInt(req.query.per_page) : 100;
+    const maxPages = req.query.max_pages ? parseInt(req.query.max_pages) : 1;
+    const repos = await githubClient.getAllPages(`/orgs/${org}/repos`, { perPage, maxPages });
+    res.json(repos);
+  } catch (err) {
+    req.logger?.error('github.client.error', { message: err.message, status: err.status, code: err.code });
+    res.status(err.status || 500).json({ error: err.message || 'GitHub error' });
+  }
 });
 
 // Clear cache endpoint
 app.post('/api/cache/clear', async (req, res) => {
-  await cacheManager.clearAll();
+  try {
+    await dependencies.cacheManager.clearAll();
   res.json({ message: 'Cache cleared successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Cache clear error', message: error.message });
+  }
 });
 
-// Clear specific repository cache
+// Invalidate cache for specific repository
+app.post('/api/cache/invalidate/:repoName', async (req, res) => {
+  try {
+    const { repoName } = req.params;
+    await dependencies.cacheManager.invalidateRepo(repoName);
+    res.json({ message: `Cache invalidated for repository: ${repoName}` });
+  } catch (error) {
+    res.status(500).json({ error: 'Cache invalidation error', message: error.message });
+  }
+});
+
+// Cache cleanup endpoint
+app.post('/api/cache/cleanup', async (req, res) => {
+  try {
+    await dependencies.cacheManager.cleanExpired();
+    res.json({ message: 'Expired cache entries cleaned successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Cache cleanup error', message: error.message });
+  }
+});
+
+// Legacy endpoint - use invalidate instead
 app.post('/api/cache/clear/:repoName', async (req, res) => {
+  try {
   const { repoName } = req.params;
-  await cacheManager.clearRepo(repoName);
+    await dependencies.cacheManager.invalidateRepo(repoName);
   res.json({ message: `Cache cleared for repository: ${repoName}` });
+  } catch (error) {
+    res.status(500).json({ error: 'Cache clear error', message: error.message });
+  }
 });
 
 // Database endpoints
@@ -2441,6 +3805,120 @@ app.get('/api/rate-limit/status', (req, res) => {
   });
 });
 
+// Code scanning JSON API
+app.get('/api/code-scanning/alerts', async (req, res) => {
+  const org = req.query.org || GITHUB_ORG;
+  const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+  const perPage = Math.min(Math.max(parseInt(req.query.per_page || '50', 10), 1), 100);
+  const filters = {
+    state: req.query.state || '',
+    severity: req.query.severity || '',
+    tool: req.query.tool || '',
+    repo: req.query.repo || '',
+    q: req.query.q || ''
+  };
+  function toParamsForApi() {
+    const p = { page, per_page: perPage };
+    if (filters.state) p.state = filters.state;
+    if (filters.severity) p.severity = filters.severity;
+    if (filters.tool) p.tool_name = filters.tool;
+    return p;
+  }
+
+  try {
+    let items = [];
+    let total = 0;
+    let fallbackUsed = false;
+    try {
+      const resp = await githubClient.request('GET', `/orgs/${org}/code-scanning/alerts`, { params: toParamsForApi() });
+      items = Array.isArray(resp.data) ? resp.data : [];
+      total = items.length + (page - 1) * perPage;
+    } catch (e) {
+      fallbackUsed = true;
+      const repos = await githubClient.getAllPages(`/orgs/${org}/repos`, { params: { type: 'all' }, perPage: 100, maxPages: 1 });
+      for (const r of repos) {
+        if (filters.repo && r.full_name !== filters.repo) continue;
+        try {
+          const params = toParamsForApi();
+          const rresp = await githubClient.request('GET', `/repos/${r.owner.login}/${r.name}/code-scanning/alerts`, { params });
+          const arr = Array.isArray(rresp.data) ? rresp.data : [];
+          items.push(...arr);
+          if (items.length >= perPage) break;
+        } catch (_er) {}
+      }
+      total = items.length;
+    }
+    const normQ = (filters.q || '').toLowerCase();
+    const mapped = items.map(a => ({
+      repository: a.repository?.full_name || a.repository?.name || '',
+      rule_id: a.rule?.id || a.rule_id || '',
+      rule_description: a.rule?.description || a.rule?.name || '',
+      severity: a.rule?.severity || a.severity || '',
+      state: a.state,
+      created_at: a.created_at || a.most_recent_instance?.created_at,
+      updated_at: a.updated_at || a.most_recent_instance?.updated_at,
+      html_url: a.html_url
+    })).filter(a => !normQ || `${a.repository} ${a.rule_id} ${a.rule_description}`.toLowerCase().includes(normQ));
+    res.json({ items: mapped.slice(0, perPage), total: total || mapped.length, page, per_page: perPage, fallbackUsed });
+  } catch (err) {
+    res.status(500).json({ error: 'Code scanning fetch failed', message: err.message });
+  }
+});
+
+// Code scanning CSV export
+app.get('/api/code-scanning/export.csv', async (req, res) => {
+  const org = req.query.org || GITHUB_ORG;
+  const filters = {
+    state: req.query.state || '',
+    severity: req.query.severity || '',
+    tool: req.query.tool || '',
+    repo: req.query.repo || '',
+    q: req.query.q || ''
+  };
+  function toParamsForApi(page) {
+    const p = { page, per_page: 100 };
+    if (filters.state) p.state = filters.state;
+    if (filters.severity) p.severity = filters.severity;
+    if (filters.tool) p.tool_name = filters.tool;
+    return p;
+  }
+  try {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="codescan-${org}.csv"`);
+    res.write('repository,rule_id,severity,state,created_at,updated_at,html_url\n');
+
+    let page = 1;
+    while (true) {
+      let items = [];
+      try {
+        const resp = await githubClient.request('GET', `/orgs/${org}/code-scanning/alerts`, { params: toParamsForApi(page) });
+        items = Array.isArray(resp.data) ? resp.data : [];
+      } catch (e) {
+        // fallback: stop export on org endpoint error to avoid very long exports
+        break;
+      }
+      if (items.length === 0) break;
+      const normQ = (filters.q || '').toLowerCase();
+      for (const a of items) {
+        const repository = a.repository?.full_name || a.repository?.name || '';
+        if (filters.repo && repository !== filters.repo) continue;
+        const rule_id = (a.rule?.id || a.rule_id || '').toString().replaceAll('"', '');
+        const severity = (a.rule?.severity || a.severity || '').toString();
+        const state = (a.state || '').toString();
+        const created_at = (a.created_at || a.most_recent_instance?.created_at || '').toString();
+        const updated_at = (a.updated_at || a.most_recent_instance?.updated_at || '').toString();
+        const html_url = (a.html_url || '').toString();
+        const line = `${repository},${rule_id},${severity},${state},${created_at},${updated_at},${html_url}\n`;
+        if (!normQ || line.toLowerCase().includes(normQ)) res.write(line);
+      }
+      page += 1;
+    }
+    res.end();
+  } catch (err) {
+    res.status(500).end('error');
+  }
+});
+
 app.post('/api/rate-limit/toggle', (req, res) => {
   rateLimiter.enabled = !rateLimiter.enabled;
   console.log(`🔄 Rate limiting ${rateLimiter.enabled ? 'ENABLED' : 'DISABLED'}`);
@@ -2459,13 +3937,8 @@ app.post('/api/rate-limit/debug/toggle', (req, res) => {
   });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).render('error', {
-    message: 'Sivua ei löytynyt',
-    error: { status: 404 }
-  });
-});
+// 404 handler - moved to after route registration
+// This will be registered in the dependencies initialization callback
 
 // Error handler
 app.use((err, req, res, next) => {
@@ -2476,7 +3949,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Sovellus käynnissä portissa ${PORT}`);
-  console.log(`Avaa selain osoitteessa: http://localhost:${PORT}`);
-});
+// Global error handler should be registered last
+app.use(errorHandler());
+
+// Server startup is now handled in the dependencies initialization callback
+// See line ~910-928 for the actual app.listen() call

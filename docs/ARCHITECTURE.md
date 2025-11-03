@@ -86,8 +86,46 @@ graph TB
   - Middleware-konfiguraatio
   - Staattisten tiedostojen tarjoilu
 
-#### **2. Route Handlers**
+#### **2. Kerrosarkkitehtuuri**
+
+Sovellus käyttää **kerrosarkkitehtuuria** (layered architecture):
+
+- **Routes** (`src/app/routes/`): HTTP-reitit
+  - `repositories.js` - Repository-reitit
+  - `commits.js` - Commits-reitit
+  - `teams.js` - Teams-reitit
+  - `collaborators.js` - Collaborators-reitit
+  - `issues.js` - Issues-reitit
+  - `pullRequests.js` - Pull Requests-reitit
+
+- **Controllers** (`src/app/controllers/`): HTTP-pyyntöjen käsittely
+  - `repositoryController.js` - Repository-kontrolleri
+  - `commitsController.js` - Commits-kontrolleri
+  - `teamsController.js` - Teams-kontrolleri
+  - `collaboratorsController.js` - Collaborators-kontrolleri
+  - `issuesController.js` - Issues-kontrolleri
+  - `pullRequestsController.js` - Pull Requests-kontrolleri
+
+- **Services** (`src/domain/services/`): Liiketoimintalogiikka
+  - `repositoryService.js` - Repository-palvelu
+  - `commitsService.js` - Commits-palvelu
+  - `teamsService.js` - Teams-palvelu
+  - `collaboratorsService.js` - Collaborators-palvelu
+  - `issuesService.js` - Issues-palvelu
+  - `pullRequestsService.js` - Pull Requests-palvelu
+
+- **Repositories** (`src/data/repositories/`): Tietokanta-operaatiot
+  - `repositoryRepository.js` - Repository-operaatiot
+  - `cacheRepository.js` - Cache-operaatiot
+
+#### **3. Route Handlers**
 - **Pääsivu** (`/`): Kielijakauma ja repository-yhteenveto
+- **Repositories** (`/repositories`): Suodatettava ja järjestettävä repository-lista
+- **Commits** (`/commits`): Viimeisimmät commitit ja tilastot
+- **Teams** (`/teams`): Organisaation tiimit ja jäsenet
+- **Collaborators** (`/collaborators`): Repository-kohtaiset collaboratorit
+- **Issues** (`/issues`): Issue-tilastot ja lista
+- **Pull Requests** (`/pull_requests`): PR-tilastot ja lista
 - **Dockerfile** (`/dockerfile`): Docker-kontainerien analyysi
 - **Django** (`/django`): Python/Django-sovellukset
 - **React** (`/react`): JavaScript/React-sovellukset
@@ -104,13 +142,16 @@ graph TB
 - **EOL Checker**: Tarkistaa End-of-Life -tilanteen Django ja Docker -versioille
 - **HDS Detector**: Tunnistaa Helsinki Design System -komponenttien käytön
 
-#### **4. Cache Manager (`DatabaseCacheManager`)**
+#### **4. Cache Manager (`UnifiedCacheManager`)**
 - **Tarkoitus**: Parantaa suorituskykyä ja vähentää API-kutsuja
-- **Strategia**: Database-first caching SQLite3-tietokannassa
+- **Strategia**: Unified cache (Redis + SQLite/Memory fallback)
+  - **Redis** (vapaaehtoinen): Nopea, skaalautuva cache
+  - **SQLite/Memory fallback**: Graceful degradation jos Redis ei ole käytettävissä
 - **Expiration**: Automaattinen vanhentuminen (TTL)
 - **Deduplication**: Estää duplikaattikutsut Map-tietorakenteella
-- **Persistence**: Cache-persistenssi tietokannassa
+- **Persistence**: Cache-persistenssi Redis:ssä ja/tai SQLite:ssä
 - **Automatic Cleanup**: Säännöllinen vanhentuneen datan siivoaminen
+- **Statistics**: Cache-hit/miss -tilastot ja monitoring
 
 #### **5. Rate Limiter (`RateLimiter`)**
 - **Tarkoitus**: Noudattaa GitHub API:n rate limitejä
@@ -233,11 +274,31 @@ CREATE TABLE repositories (
 
 #### **3. Indeksit**
 ```sql
+-- Cache-indeksit
 CREATE INDEX idx_cache_key ON cache(key);
 CREATE INDEX idx_cache_expires ON cache(expires_at);
+
+-- Repository-indeksit
 CREATE INDEX idx_repos_name ON repositories(name);
 CREATE INDEX idx_repos_updated ON repositories(updated_at);
+CREATE INDEX idx_repos_language ON repositories(language);
+CREATE INDEX idx_repos_full_name ON repositories(full_name);
+
+-- Composite indeksit (suorituskykyoptimoinnit)
+CREATE INDEX idx_repos_language_updated ON repositories(language, updated_at DESC);
+CREATE INDEX idx_repos_stars_updated ON repositories(stargazers_count DESC, updated_at DESC);
 ```
+
+#### **4. Migraatiojärjestelmä**
+- **MigrationManager** (`src/data/migrations/migrationManager.js`): Hallitsee tietokantamigraatioita
+- **001_initial_schema.js**: Alkuperäinen skeema (cache ja repositories -taulut)
+- **002_add_composite_indexes.js**: Composite-indeksit suorituskykyoptimoinnille
+
+#### **5. Tietokantayhteys**
+- **DatabaseConnection** (`src/data/database/dbConnection.js`): Robusti tietokantayhteys
+  - **Retry-logiikka**: Automaattiset uudelleenyritykset
+  - **WAL-tila**: Write-Ahead Logging parantamaan suorituskykyä
+  - **Busy timeout**: Käsittelee kiireisiä tilanteita
 
 ### 📁 Tiedostopohjainen data
 
@@ -294,8 +355,14 @@ GET /repos/{owner}/{repo}/dependabot/alerts
 
 ### 🏠 Internal API Routes
 
-#### **1. Main Routes**
+#### **1. Main Routes (Sivut)**
 - `GET /` - Päänäkymä (kielijakauma ja repository-yhteenveto)
+- `GET /repositories` - Repositoryt-sivu (suodatuksella ja paginoinnilla)
+- `GET /commits` - Commits-sivu (viimeisimmät commitit ja tilastot)
+- `GET /teams` - Teams-sivu (organisaation tiimit ja jäsenet)
+- `GET /collaborators` - Collaborators-sivu (repository-kohtaiset collaboratorit)
+- `GET /issues` - Issues-sivu (issue-tilastot ja lista)
+- `GET /pull_requests` - Pull Requests-sivu (PR-tilastot ja lista)
 - `GET /dockerfile` - Docker-analyysi (EOL-tarkistus mukana)
 - `GET /django` - Django-sovellukset (EOL-tarkistus mukana)
 - `GET /react` - React-sovellukset
@@ -306,11 +373,16 @@ GET /repos/{owner}/{repo}/dependabot/alerts
 
 #### **2. API Endpoints**
 - `GET /api/repos` - JSON API repositorytietojen hakuun
+  - Query params: `language`, `minStars`, `orderBy`, `orderDirection`, `limit`, `offset`, `refresh`
 - `GET /api/rate-limit` - Rate limit -tilan tarkistus
-- `GET /api/cache` - Cache-tilastot
+- `GET /api/cache` - Cache-tilastot ja tiedot
 - `POST /api/cache/clear` - Cache-tyhjennys
+- `POST /api/cache/invalidate/:repoName` - Invalidoi tietyn repon cache
+- `POST /api/cache/cleanup` - Puhdista vanhentuneet cache-merkinnät
 - `GET /api/db/repos` - Database-repojen haku
 - `GET /api/db/stats` - Database-tilastot
+
+Katso [API-dokumentaatio](docs/API.md) yksityiskohtaisemmasta API-kuvauksesta.
 
 #### **3. Query Parameters**
 - `?refresh=true` - Pakottaa API-päivityksen
@@ -482,10 +554,17 @@ for (let i = 0; i < repos.length; i += batchSize) {
 - Efficient algorithms
 - Resource monitoring
 
-#### **3. Future Enhancements**
-- Redis caching layer
+#### **3. Current Enhancements**
+- ✅ **Redis caching layer**: UnifiedCacheManager tukee Redisia
+- ✅ **Database migrations**: Migraatiojärjestelmä käytössä
+- ✅ **Composite indexes**: Suorituskykyoptimoinnit
+- ✅ **Connection pooling**: Robusti tietokantayhteys
+- ✅ **Testing**: Jest-yksikkö- ja integraatiotestit
+
+#### **4. Future Enhancements**
 - Microservices architecture
-- Container deployment
+- Container deployment (Docker)
+- CI/CD Pipeline
 
 ---
 
@@ -539,9 +618,12 @@ npm start      # Production mode
 - Template compilation (EJS)
 
 #### **2. Database Initialization**
-- Schema creation
-- Index creation
-- Initial data seeding
+- **Migration system**: Automaattinen skeeman ylläpito
+  - `MigrationManager`: Hallitsee migraatioita
+  - Migraatiot: `001_initial_schema.js`, `002_add_composite_indexes.js`
+- **DatabaseConnection**: Robusti yhteys retry-logiikalla
+- **WAL mode**: Write-Ahead Logging parantamaan suorituskykyä
+- **Indexes**: Yksittäiset ja composite-indeksit optimoinnille
 
 #### **3. Configuration Management**
 - Environment-specific configs
@@ -550,23 +632,29 @@ npm start      # Production mode
 
 ### 💾 Cache System - Yksityiskohdat
 
-#### **1. DatabaseCacheManager Features**
+#### **1. UnifiedCacheManager Features**
 ```javascript
-class DatabaseCacheManager {
+class UnifiedCacheManager {
   // Cache operations
-  get(key)           // Hae cachesta
-  set(key, data, ttl) // Tallenna cacheen TTL:llä
-  clearRepo(repoName) // Tyhjennä tietyn repon cache
-  clearAll()         // Tyhjennä kaikki cache
+  get(key)                    // Hae cachesta (Redis -> SQLite/Memory fallback)
+  set(key, data, ttl)         // Tallenna cacheen TTL:llä (Redis + SQLite/Memory)
+  invalidateRepo(repoName)   // Invalidoi tietyn repon cache
+  clearAll()                  // Tyhjennä kaikki cache
+  cleanExpired()              // Poista vanhentuneet
   
   // Request deduplication
   deduplicateRequest(key, fn) // Estää duplikaattikutsut
   
   // Statistics
-  getStats()         // Cache-tilastot
-  cleanExpired()     // Poista vanhentuneet
+  getStats()                  // Cache-tilastot (hits, misses, hitRate)
+  getInfo()                   // Cache-tiedot (type, Redis-status, database-status)
 }
 ```
+
+#### **1.1 Redis Cache** (vapaaehtoinen)
+- **RedisCache** (`src/integrations/cache/redisCache.js`): Redis-toteutus
+- Graceful fallback jos Redis ei ole käytettävissä
+- Pattern-based invalidation (`deleteByPattern`)
 
 #### **2. Cache Keys**
 - `org_repos_${org}` - Organisaation repolista (1h TTL)

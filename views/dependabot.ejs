@@ -51,57 +51,22 @@
             'GRAD' 0,
             'opsz' 24
         }
+    .sortable {
+      user-select: none;
+    }
+    .sortable:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+    .sort-icon {
+      margin-left: 0.25rem;
+      font-size: 0.875rem;
+      color: #94a3b8;
+    }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
 <div class="flex min-h-screen">
-<aside class="w-64 bg-white dark:bg-background-dark border-r border-slate-200 dark:border-slate-800 p-4 flex flex-col justify-between">
-<div>
-<div class="flex justify-center mb-8 px-4">
-<img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNzggMzYiIHRpdGxlPSJIZWxzaW5naW4ga2F1cHVua2kiIHJvbGU9ImltZyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoCiAgICAgICAgZD0iTTc1Ljc1MyAyLjI1MXYyMC43YzAgMy45NS0zLjI3NSA3LjE3OC03LjMxIDcuMTc4aC0yMi4yNmMtMi42NzQgMC01LjIwNS45Ni03LjE4MyAyLjczOWExMC43NDkgMTAuNzQ5IDAgMDAtNy4xODMtMi43NEg5LjUwOWMtNC4wMDMgMC03LjI0Ny0zLjIxLTcuMjQ3LTcuMTc3VjIuMjVoNzMuNDkxek00MC4xODcgMzQuODM1YTguNDcgOC40NyAwIDAxNi4wMTItMi40NzFoMjIuMjQ1YzUuMjY4IDAgOS41NTYtNC4yMTkgOS41NTYtOS40MTNWMEgwdjIyLjkzNWMwIDUuMTk0IDQuMjU2IDkuNDEzIDkuNTA5IDkuNDEzaDIyLjMwOGMyLjI2MyAwIDQuMzk4Ljg4MiA2LjAxMiAyLjQ3MUwzOS4wMTYgMzZsMS4xNy0xLjE2NXoiCiAgICAgICAgZmlsbD0iY3VycmVudENvbG9yIiAvPgogICAgPHBhdGgKICAgICAgICBkPSJNNjcuNTIyIDExLjY3NmMwIC42ODEtLjU1NiAxLjE3Ny0xLjI1NSAxLjE3Ny0uNyAwLTEuMjU1LS40OTYtMS4yNTUtMS4xNzcgMC0uNjgyLjU1Ni0xLjE3OCAxLjI1NS0xLjE3OC43LS4wMyAxLjI1NS40NjUgMS4yNTUgMS4xNjh6bS0yLjM1MiA5LjYyMmgyLjE3OHYtNy41NDZINjUuMTd2Ny41NDZ6bS0zLjkwOS00LjU1NmwyLjg0NSA0LjU1NmgtMi4zNjhsLTEuOTA3LTMuMDIyLTEuMDMzIDEuMjcxdjEuNzVoLTIuMTYxVjEwLjQ1M2gyLjE2djUuMDA0YzAtLjkzLS4xMSAxLjg2LS4xMSAxLjg2aC4wNDczLjUwOS0uODIxLjkzOC0xLjQxbDEuNjUzLTIuMTU0aDIuNTQybC0yLjYwNiAyLjk5em0tNi44MTctLjI3OGMwLTEuODc1LS45MzgtMi44OTgtMi40MzItMi44OTgtMS4yNzEgMC0xLjkzOS43MjgtMi4zMiAxLjQyNmgtLjA0OGwuMTEyLTEuMjRoLTIuMTYydjcuNTQ2aDIuMTYyVjE2LjgyYzAtLjg2OC41MjQtMS40NzIgMS4zMzUtMS40NzIuODEgMCAxLjE2LjUyNyAxLjE2IDEuNTM0djQuNDE2aDIuMTc3bC4wMTYtNC44MzR6bS04LjkzMS00Ljc4OGMwIC42ODEtLjU1NyAxLjE3Ny0xLjI1NiAxLjE3Ny0uNyAwLTEuMjU1LS40OTYtMS4yNTUtMS4xNzcgMC0uNjgyLjU1Ni0xLjE3OCAxLjI1NS0xLjE3OC43MTUtLjAzIDEuMjU2LjQ2NSAxLjI1NiAxLjE3OHptLTIuMzUyIDkuNjIyaDIuMTc3di03LjU0Nkg0My4xNnY3LjU0NnptLTMuNzUtMi4xMDdjMC0uNjA5LS44NTktLjcyOS0xLjg2LTEuMDA4LTEuMTYtLjI5NC0yLjYyMi0uODY3LTIuNjIyLTIuMzA4IDAtMS40MjYgMS4zOTgtMi4zMjQgMy4wNTEtMi4zMjQgMS41NDEgMCAyLjk1Ni43MTIgMy41NDQgMS43MmwtMS44NiAxLjAyMmMtLjE5LS42NjYtLjc2Mi0xLjE5My0xLjYyLTEuMTkzLS41NTcgMC0xLjAxOC4yMzItMS4wMTguNjgyIDAgLjU3MyAxLjAxOC42MzUgMi4xNjIuOTkxIDEuMjA4LjM3MiAyLjMyLjkxNSAyLjMyIDIuMjk0IDAgMS41MTgtMS40NDYgMi40MTctMy4xMTUgMi40MTctMS44MTEgMC0zLjI0Mi0uNzQ0LTMuODc3LTEuOTUybDEuODktMS4wMzljLjI0LjgyMi45MjIgMS40NDEgMS45NTUgMS40NDEuNjIgMCAxLjA1LS4yNDggMS4wNS0uNzQzem0tNi44ODItOC42NzdoLTIuMTc3djguNjkyYzAgLjc3NS4xNzUgMS4zNDguNTA5IDEuNzA1LjM1LjM1Ni44OS41MjYgMS42MzYuNTI2LjI1NSAwIC41MjUtLjAzLjc4LS4wNzcuMjctLjA2Mi40NzYtLjE0LjY1LS4yMzNsLjE5MS0xLjQyNWEyLjA3IDIuMDcgMCAwMS0uNDYuMTI0Yy0uMTI4LjAzLS4yODcuMDMtLjQ2MS4wMy0uMjg2IDAtLjQxNC0uMDc3LS41MDktLjIxNi0uMTExLS4xNC0uMTU5LS4zODctLjE1OS0uNzQ0di04LjM4MnptLTcuMjQ2IDQuNTdjLS43OTUgMC0xLjQ0Ni41NTgtMS42MjEgMS41ODFoMy4wNWMuMDE3LS44OTktLjU4Ny0xLjU4LTEuNDMtMS41OHptMy4zNTMgMy4wMDdIMjMuNjNjLjA5NSAxLjIyNC43OTQgMS44MjggMS43IDEuODI4LjgxIDAgMS4zNjctLjUyNyAxLjQ5NC0xLjI0bDEuODI4IDEuMDA3Yy0uNTQuOTYxLTEuNyAxLjc5OC0zLjMyMiAxLjc5OC0yLjE2IDAtMy43NS0xLjQ3Mi0zLjc1LTMuOTUxIDAtMi40NjQgMS42Mi0zLjk1MSAzLjcwMy0zLjk1MSAyLjA4MSAwIDMuNDY0IDEuNDQgMy40NjQgMy40ODYtLjAxNi42MDQtLjExMSAxLjAyMy0uMTExIDEuMDIzem0tMTEuMDc3IDMuMjA3aDIuMjU3VjEwLjkxNmgtMi4yNTd2NC4xMDdoLTQuMjQzdi00LjA5MUgxMS4wNnYxMC4zNjZoMi4yNTZ2LTQuMjkyaDQuMjQzdjQuMjkyeiIKICAgICAgICBmaWxsPSJjdXJyZW50Q29sb3IiIC8+Cjwvc3ZnPg==" alt="Helsingin kaupunki" class="w-full h-auto max-w-full">
-</div>
-<div class="flex flex-col mb-8">
-<h1 class="text-[#0d141c] dark:text-white text-base font-medium leading-normal">Sovellusportfolio</h1>
-<p class="text-[#49739c] dark:text-slate-400 text-sm font-normal leading-normal">GitHub</p>
-</div>
-<nav class="flex flex-col gap-2">
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/">
-<span class="material-symbols-outlined">dashboard</span>
-<p class="text-sm font-medium">Etusivu</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/dockerfile">
-<i class="fab fa-docker"></i>
-<p class="text-sm font-medium">Dockerfile</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/django">
-<i class="fab fa-python"></i>
-<p class="text-sm font-medium">Django</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/react">
-<i class="fab fa-react"></i>
-<p class="text-sm font-medium">React</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/drupal">
-<i class="fab fa-drupal"></i>
-<p class="text-sm font-medium">Drupal</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 rounded-lg bg-primary/10 text-primary" href="/dependabot">
-<i class="fas fa-shield-alt"></i>
-<p class="text-sm font-medium">Dependabot</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/hds">
-<i class="fas fa-palette"></i>
-<p class="text-sm font-medium">HDS</p>
-</a>
-</nav>
-</div>
-<div class="mt-auto">
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/settings">
-<span class="material-symbols-outlined">settings</span>
-<p class="text-sm font-medium">Asetukset</p>
-</a>
-</div>
-</aside>
+<%- include("components/sidebar") %>
 
 <main class="flex-1 overflow-y-auto">
 <div class="p-8">
@@ -114,38 +79,50 @@
 <p class="text-slate-500 dark:text-slate-400 mt-1">Kriittisten turvallisuusilmoitusten yleiskatsaus</p>
 </div>
 </div>
-<div class="flex items-center gap-3">
-<button id="refresh-btn" onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
-<span class="material-symbols-outlined text-sm">refresh</span>
-Päivitä tiedot
-</button>
-<div id="refresh-status" class="hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500">
-<span class="material-symbols-outlined text-sm animate-spin">sync</span>
-Ladataan...
-</div>
-</div>
+    <div class="flex items-center gap-3">
+    <select id="team-filter" class="px-4 py-2 text-sm font-medium text-[#0d141c] dark:text-white bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+    <option value="">Kaikki tiimit</option>
+    <% if (typeof teams !== 'undefined' && teams && Array.isArray(teams) && teams.length > 0) { %>
+    <% teams.forEach(function(team) { %>
+    <% if (team && typeof team === 'string' && team.trim()) { %>
+    <option value="<%= team.trim() %>"><%= team.trim() %></option>
+    <% } %>
+    <% }); %>
+    <% } else { %>
+    <!-- Debug: teams is <%= typeof teams %>, length: <%= teams && teams.length || 0 %> -->
+    <% } %>
+    </select>
+    <button id="refresh-btn" onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
+    <span class="material-symbols-outlined text-sm">refresh</span>
+    Päivitä tiedot
+    </button>
+    <div id="refresh-status" class="hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500">
+    <span class="material-symbols-outlined text-sm animate-spin">sync</span>
+    Ladataan...
+    </div>
+    </div>
 </div>
 
 <!-- Stats Cards -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 <div class="flex flex-col gap-2 rounded-xl p-6 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/10">
 <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Kriittisiä ilmoituksia</p>
-<p class="text-3xl font-bold text-red-600"><%= stats.totalCriticalAlerts %></p>
+<p class="text-3xl font-bold text-red-600 stat-total-critical"><%= stats.totalCriticalAlerts %></p>
 <p class="text-sm font-medium text-red-600">Kaikki</p>
 </div>
 <div class="flex flex-col gap-2 rounded-xl p-6 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/10">
 <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Repositoryt ilmoituksilla</p>
-<p class="text-3xl font-bold text-red-600"><%= stats.reposWithAlerts %></p>
+<p class="text-3xl font-bold text-red-600 stat-repos-with-alerts"><%= stats.reposWithAlerts %></p>
 <p class="text-sm font-medium text-red-600">Turvallisuusriski</p>
 </div>
 <div class="flex flex-col gap-2 rounded-xl p-6 border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-900/10">
 <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Ilman ilmoituksia</p>
-<p class="text-3xl font-bold text-green-600"><%= stats.reposWithoutAlerts %></p>
+<p class="text-3xl font-bold text-green-600 stat-repos-without-alerts"><%= stats.reposWithoutAlerts %></p>
 <p class="text-sm font-medium text-green-600">Turvallinen</p>
 </div>
 <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
 <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Yhteensä repositoryt</p>
-<p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.totalRepos %></p>
+<p class="text-3xl font-bold text-[#0d141c] dark:text-white stat-total-repos"><%= stats.totalRepos %></p>
 <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Kaikki repot</p>
 </div>
 </div>
@@ -157,24 +134,22 @@ Ladataan...
 <span class="material-symbols-outlined text-2xl text-red-600">warning</span>
 <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Repositoryt kriittisillä ilmoituksilla</h2>
 </div>
-<span class="text-sm text-red-600 font-medium"><%= reposWithAlerts.length %> repositoryä</span>
+<span class="text-sm text-red-600 font-medium count-with-alerts"><%= reposWithAlerts.length %> repositoryä</span>
 </div>
 
-<% if (reposWithAlerts.length === 0) { %>
-<div class="text-center py-12 bg-white dark:bg-slate-900 rounded-lg">
+<div class="text-center py-12 bg-white dark:bg-slate-900 rounded-lg empty-state-with-alerts <% if (reposWithAlerts.length > 0) { %>hidden<% } %>">
 <span class="material-symbols-outlined text-6xl text-green-600">check_circle</span>
 <h3 class="text-xl font-semibold text-green-600 mt-4">Ei kriittisiä ilmoituksia!</h3>
 <p class="text-slate-400 dark:text-slate-500 mt-2">Kaikki repositoryt ovat turvassa.</p>
 </div>
-<% } else { %>
-<div class="overflow-x-auto bg-white dark:bg-slate-900 rounded-lg">
-<table class="w-full text-left text-sm">
+<div class="overflow-x-auto bg-white dark:bg-slate-900 rounded-lg table-with-alerts <% if (reposWithAlerts.length === 0) { %>hidden<% } %>">
+<table class="w-full text-left text-sm repos-with-alerts">
 <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800">
 <tr>
-<th class="px-6 py-3" scope="col">Repository</th>
-<th class="px-6 py-3" scope="col">Kieli</th>
-<th class="px-6 py-3" scope="col">Kriittisiä ilmoituksia</th>
-<th class="px-6 py-3" scope="col">Päivitetty</th>
+<th class="px-6 py-3 sortable cursor-pointer hover:bg-slate-100" scope="col" data-sort="name">Repository <span class="sort-icon">↕</span></th>
+<th class="px-6 py-3 sortable cursor-pointer hover:bg-slate-100" scope="col" data-sort="language">Kieli <span class="sort-icon">↕</span></th>
+<th class="px-6 py-3 sortable cursor-pointer hover:bg-slate-100" scope="col" data-sort="alerts">Kriittisiä ilmoituksia <span class="sort-icon">↕</span></th>
+<th class="px-6 py-3 sortable cursor-pointer hover:bg-slate-100" scope="col" data-sort="updated">Päivitetty <span class="sort-icon">↕</span></th>
 </tr>
 </thead>
 <tbody>
@@ -210,28 +185,26 @@ Ladataan...
 </tbody>
 </table>
 </div>
-<% } %>
 </div>
 
 <!-- Repositories without Alerts -->
-<% if (reposWithoutAlerts.length > 0) { %>
-<div class="rounded-xl border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-900/10 p-6">
+<div class="repos-without-alerts-container rounded-xl border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-900/10 p-6 <% if (reposWithoutAlerts.length === 0) { %>hidden<% } %>">
 <div class="flex items-center justify-between mb-4">
 <div class="flex items-center gap-3">
 <span class="material-symbols-outlined text-2xl text-green-600">check_circle</span>
 <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Turvalliset repositoryt</h2>
 </div>
-<span class="text-sm text-green-600 font-medium"><%= reposWithoutAlerts.length %> repositoryä</span>
+<span class="text-sm text-green-600 font-medium count-without-alerts"><%= reposWithoutAlerts.length %> repositoryä</span>
 </div>
 
 <div class="overflow-x-auto bg-white dark:bg-slate-900 rounded-lg">
-<table class="w-full text-left text-sm">
+<table class="w-full text-left text-sm repos-without-alerts">
 <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800">
 <tr>
-<th class="px-6 py-3" scope="col">Repository</th>
-<th class="px-6 py-3" scope="col">Kieli</th>
-<th class="px-6 py-3" scope="col">Kuvaus</th>
-<th class="px-6 py-3" scope="col">Päivitetty</th>
+<th class="px-6 py-3 sortable cursor-pointer hover:bg-slate-100" scope="col" data-sort="name">Repository <span class="sort-icon">↕</span></th>
+<th class="px-6 py-3 sortable cursor-pointer hover:bg-slate-100" scope="col" data-sort="language">Kieli <span class="sort-icon">↕</span></th>
+<th class="px-6 py-3 sortable cursor-pointer hover:bg-slate-100" scope="col" data-sort="description">Kuvaus <span class="sort-icon">↕</span></th>
+<th class="px-6 py-3 sortable cursor-pointer hover:bg-slate-100" scope="col" data-sort="updated">Päivitetty <span class="sort-icon">↕</span></th>
 </tr>
 </thead>
 <tbody>
@@ -264,9 +237,393 @@ Ladataan...
 </tbody>
 </table>
 </div>
-<% } %>
 </div>
 </main>
 </div>
+
+<script>
+// Store original repository data
+const originalReposWithAlerts = <%- JSON.stringify(typeof reposWithAlerts !== 'undefined' && reposWithAlerts ? reposWithAlerts : []) %>;
+const originalReposWithoutAlerts = <%- JSON.stringify(typeof reposWithoutAlerts !== 'undefined' && reposWithoutAlerts ? reposWithoutAlerts : []) %>;
+
+// Get language color helper (must be defined before use)
+function getLanguageColor(language) {
+  const colors = {
+    'JavaScript': '#f7df1e',
+    'TypeScript': '#3178c6',
+    'Python': '#3776ab',
+    'Java': '#ed8b00',
+    'Go': '#00add8',
+    'Rust': '#000000',
+    'PHP': '#777bb4',
+    'Ruby': '#cc342d',
+    'C++': '#00599c',
+    'C': '#a8b9cc',
+    'C#': '#239120',
+    'Swift': '#fa7343',
+    'Kotlin': '#7f52ff',
+    'Dart': '#0175c2',
+    'HTML': '#e34c26',
+    'CSS': '#1572b6',
+    'Shell': '#89e051',
+    'Dockerfile': '#384d54'
+  };
+  return colors[language] || '#94a3b8';
+}
+
+// Get team from repository (check all_teams array or team field)
+function getRepoTeams(repo) {
+  const teams = [];
+  
+  // Parse all_teams if it's a string (shouldn't happen but handle it)
+  let allTeams = repo.all_teams;
+  if (typeof allTeams === 'string') {
+    try {
+      allTeams = JSON.parse(allTeams);
+    } catch (e) {
+      allTeams = [];
+    }
+  }
+  
+  if (allTeams && Array.isArray(allTeams) && allTeams.length > 0) {
+    teams.push(...allTeams.filter(t => t && typeof t === 'string' && t.trim()));
+  } else if (repo.team && typeof repo.team === 'string' && repo.team.trim()) {
+    teams.push(repo.team.trim());
+  }
+  
+  return teams;
+}
+
+// Check if repository belongs to selected team
+function belongsToTeam(repo, selectedTeam) {
+  if (!selectedTeam) return true; // Show all if no filter
+  const repoTeams = getRepoTeams(repo);
+  const matches = repoTeams.some(team => team === selectedTeam || team.trim() === selectedTeam.trim());
+  return matches;
+}
+
+// Filter repositories by team
+function filterRepositoriesByTeam(selectedTeam) {
+  const filteredWithAlerts = originalReposWithAlerts.filter(repo => belongsToTeam(repo, selectedTeam));
+  const filteredWithoutAlerts = originalReposWithoutAlerts.filter(repo => belongsToTeam(repo, selectedTeam));
+  
+  console.log(`🔍 Filtteröinti tiimillä "${selectedTeam}": ${filteredWithAlerts.length} ilmoituksilla, ${filteredWithoutAlerts.length} ilman ilmoituksia`);
+  if (selectedTeam && filteredWithAlerts.length === 0 && filteredWithoutAlerts.length === 0) {
+    // Debug: check first repo's teams
+    if (originalReposWithAlerts.length > 0) {
+      const firstRepo = originalReposWithAlerts[0];
+      const firstRepoTeams = getRepoTeams(firstRepo);
+      console.log(`🔍 Debug: Ensimmäisen repon tiimit: ${JSON.stringify(firstRepoTeams)}, etsitty: "${selectedTeam}"`);
+    }
+  }
+  
+  return { filteredWithAlerts, filteredWithoutAlerts };
+}
+
+// Update table with filtered data
+function updateTables(filteredWithAlerts, filteredWithoutAlerts) {
+  console.log(`🔍 updateTables kutsuttu: ${filteredWithAlerts.length} ilmoituksilla, ${filteredWithoutAlerts.length} ilman`);
+  
+  // Update "with alerts" table
+  const withAlertsTbody = document.querySelector('.repos-with-alerts tbody');
+  if (!withAlertsTbody) {
+    console.error('🔍 Virhe: .repos-with-alerts tbody ei löydy!');
+    return;
+  }
+  
+  withAlertsTbody.innerHTML = '';
+  filteredWithAlerts.forEach(repo => {
+      const row = document.createElement('tr');
+      row.className = 'border-b dark:border-slate-800 hover:bg-red-50 dark:hover:bg-red-900/10';
+      
+      // Create cells safely
+      const th = document.createElement('th');
+      th.className = 'px-6 py-4 font-medium text-[#0d141c] dark:text-white whitespace-nowrap';
+      th.setAttribute('scope', 'row');
+      const link = document.createElement('a');
+      link.className = 'hover:text-primary flex items-center gap-2';
+      link.href = repo.html_url || '#';
+      link.target = '_blank';
+      link.rel = 'noopener';
+      const icon = document.createElement('i');
+      icon.className = 'fab fa-github';
+      link.appendChild(icon);
+      link.appendChild(document.createTextNode(repo.name || ''));
+      th.appendChild(link);
+      
+      const td1 = document.createElement('td');
+      td1.className = 'px-6 py-4';
+      if (repo.language) {
+        const langSpan = document.createElement('span');
+        langSpan.className = 'inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium';
+        const color = getLanguageColor(repo.language);
+        langSpan.style.backgroundColor = color + '20';
+        langSpan.style.color = color;
+        const dot = document.createElement('span');
+        dot.className = 'w-2 h-2 rounded-full';
+        dot.style.backgroundColor = color;
+        langSpan.appendChild(dot);
+        langSpan.appendChild(document.createTextNode(repo.language));
+        td1.appendChild(langSpan);
+      } else {
+        const dash = document.createElement('span');
+        dash.className = 'text-slate-400';
+        dash.textContent = '-';
+        td1.appendChild(dash);
+      }
+      
+      const td2 = document.createElement('td');
+      td2.className = 'px-6 py-4';
+      const alertSpan = document.createElement('span');
+      alertSpan.className = 'inline-flex items-center gap-2 px-3 py-1 rounded text-xs font-bold bg-red-600 text-white';
+      const warningIcon = document.createElement('span');
+      warningIcon.className = 'material-symbols-outlined text-sm';
+      warningIcon.textContent = 'warning';
+      alertSpan.appendChild(warningIcon);
+      alertSpan.appendChild(document.createTextNode(String(repo.dependabot_critical_count || 0)));
+      td2.appendChild(alertSpan);
+      
+      const td3 = document.createElement('td');
+      td3.className = 'px-6 py-4 text-slate-500 dark:text-slate-400';
+      td3.textContent = repo.updated_at ? new Date(repo.updated_at).toLocaleDateString('fi-FI') : '-';
+      
+      row.appendChild(th);
+      row.appendChild(td1);
+      row.appendChild(td2);
+      row.appendChild(td3);
+      withAlertsTbody.appendChild(row);
+    });
+    
+    // Show/hide empty state
+    const emptyState = document.querySelector('.empty-state-with-alerts');
+    const tableContainer = document.querySelector('.table-with-alerts');
+    if (filteredWithAlerts.length === 0) {
+      if (emptyState) emptyState.classList.remove('hidden');
+      if (tableContainer) tableContainer.classList.add('hidden');
+    } else {
+      if (emptyState) emptyState.classList.add('hidden');
+      if (tableContainer) tableContainer.classList.remove('hidden');
+    }
+    
+    // Update count
+    const countElement = document.querySelector('.count-with-alerts');
+    if (countElement) {
+      countElement.textContent = `${filteredWithAlerts.length} repositoryä`;
+    }
+  
+  // Update "without alerts" table
+  const withoutAlertsContainer = document.querySelector('.repos-without-alerts-container');
+  const withoutAlertsTbody = document.querySelector('.repos-without-alerts tbody');
+  if (!withoutAlertsTbody) {
+    console.error('🔍 Virhe: .repos-without-alerts tbody ei löydy!');
+    return;
+  }
+  
+  withoutAlertsTbody.innerHTML = '';
+  filteredWithoutAlerts.forEach(repo => {
+      const row = document.createElement('tr');
+      row.className = 'border-b dark:border-slate-800 hover:bg-green-50 dark:hover:bg-green-900/10';
+      
+      // Create cells safely
+      const th = document.createElement('th');
+      th.className = 'px-6 py-4 font-medium text-[#0d141c] dark:text-white whitespace-nowrap';
+      th.setAttribute('scope', 'row');
+      const link = document.createElement('a');
+      link.className = 'hover:text-primary flex items-center gap-2';
+      link.href = repo.html_url || '#';
+      link.target = '_blank';
+      link.rel = 'noopener';
+      const icon = document.createElement('i');
+      icon.className = 'fab fa-github';
+      link.appendChild(icon);
+      link.appendChild(document.createTextNode(repo.name || ''));
+      th.appendChild(link);
+      
+      const td1 = document.createElement('td');
+      td1.className = 'px-6 py-4';
+      if (repo.language) {
+        const langSpan = document.createElement('span');
+        langSpan.className = 'inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium';
+        const color = getLanguageColor(repo.language);
+        langSpan.style.backgroundColor = color + '20';
+        langSpan.style.color = color;
+        const dot = document.createElement('span');
+        dot.className = 'w-2 h-2 rounded-full';
+        dot.style.backgroundColor = color;
+        langSpan.appendChild(dot);
+        langSpan.appendChild(document.createTextNode(repo.language));
+        td1.appendChild(langSpan);
+      } else {
+        const dash = document.createElement('span');
+        dash.className = 'text-slate-400';
+        dash.textContent = '-';
+        td1.appendChild(dash);
+      }
+      
+      const td2 = document.createElement('td');
+      td2.className = 'px-6 py-4 text-slate-500 dark:text-slate-400';
+      td2.textContent = repo.description || '-';
+      
+      const td3 = document.createElement('td');
+      td3.className = 'px-6 py-4 text-slate-500 dark:text-slate-400';
+      td3.textContent = repo.updated_at ? new Date(repo.updated_at).toLocaleDateString('fi-FI') : '-';
+      
+      row.appendChild(th);
+      row.appendChild(td1);
+      row.appendChild(td2);
+      row.appendChild(td3);
+      withoutAlertsTbody.appendChild(row);
+    });
+    
+    // Update count
+    const countElement = document.querySelector('.count-without-alerts');
+    if (countElement) {
+      countElement.textContent = `${filteredWithoutAlerts.length} repositoryä`;
+    }
+    
+    // Show/hide "without alerts" container
+    if (withoutAlertsContainer) {
+      if (filteredWithoutAlerts.length === 0) {
+        withoutAlertsContainer.classList.add('hidden');
+      } else {
+        withoutAlertsContainer.classList.remove('hidden');
+      }
+    }
+  
+  // Update stats
+  const totalCritical = filteredWithAlerts.reduce((sum, repo) => sum + (repo.dependabot_critical_count || 0), 0);
+  const totalRepos = filteredWithAlerts.length + filteredWithoutAlerts.length;
+  
+  const statTotalCritical = document.querySelector('.stat-total-critical');
+  const statReposWithAlerts = document.querySelector('.stat-repos-with-alerts');
+  const statReposWithoutAlerts = document.querySelector('.stat-repos-without-alerts');
+  const statTotalRepos = document.querySelector('.stat-total-repos');
+  
+  if (statTotalCritical) statTotalCritical.textContent = totalCritical;
+  if (statReposWithAlerts) statReposWithAlerts.textContent = filteredWithAlerts.length;
+  if (statReposWithoutAlerts) statReposWithoutAlerts.textContent = filteredWithoutAlerts.length;
+  if (statTotalRepos) statTotalRepos.textContent = totalRepos;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Restore selected team from localStorage
+  const savedTeam = localStorage.getItem('dependabot-filter-team');
+  const teamFilter = document.getElementById('team-filter');
+  if (teamFilter && savedTeam) {
+    teamFilter.value = savedTeam;
+  }
+  
+  // Initial filter application
+  const selectedTeam = teamFilter ? teamFilter.value : '';
+  const { filteredWithAlerts, filteredWithoutAlerts } = filterRepositoriesByTeam(selectedTeam);
+  updateTables(filteredWithAlerts, filteredWithoutAlerts);
+  
+  // Add event listener for team filter
+  if (teamFilter) {
+    teamFilter.addEventListener('change', function() {
+      const selectedTeam = this.value;
+      console.log(`🔍 Tiimi-valinta muuttui: "${selectedTeam}"`);
+      localStorage.setItem('dependabot-filter-team', selectedTeam);
+      const { filteredWithAlerts, filteredWithoutAlerts } = filterRepositoriesByTeam(selectedTeam);
+      console.log(`🔍 Päivitetään taulukot: ${filteredWithAlerts.length} ja ${filteredWithoutAlerts.length} repositoryä`);
+      updateTables(filteredWithAlerts, filteredWithoutAlerts);
+    });
+  }
+  
+  const tables = document.querySelectorAll('table');
+  
+  tables.forEach(table => {
+    const headers = table.querySelectorAll('th.sortable');
+    const tbody = table.querySelector('tbody');
+    let currentSort = { column: null, ascending: true };
+    
+    headers.forEach(header => {
+      header.addEventListener('click', function() {
+        const sortKey = this.getAttribute('data-sort');
+        const isAscending = currentSort.column === sortKey ? !currentSort.ascending : true;
+        
+        // Update sort icons
+        headers.forEach(h => {
+          const icon = h.querySelector('.sort-icon');
+          if (icon) icon.textContent = '↕';
+        });
+        const icon = this.querySelector('.sort-icon');
+        if (icon) icon.textContent = isAscending ? '↑' : '↓';
+        
+        // Sort rows
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const sortedRows = rows.sort((a, b) => {
+          let aVal, bVal;
+          
+          const getCellValue = (row, idx) => {
+            const cells = row.querySelectorAll('td');
+            if (idx < cells.length && idx >= 0) {
+              return cells[idx].textContent.trim();
+            }
+            return '';
+          };
+          
+          // Get cell values based on sort key
+          if (sortKey === 'name') {
+            aVal = a.querySelector('th a').textContent.trim().toLowerCase();
+            bVal = b.querySelector('th a').textContent.trim().toLowerCase();
+          } else if (sortKey === 'language') {
+            // Language is the first td (index 0)
+            aVal = getCellValue(a, 0).toLowerCase();
+            bVal = getCellValue(b, 0).toLowerCase();
+          } else if (sortKey === 'alerts') {
+            // Alerts is the second td (index 1) - contains the number in a span
+            const aCell = a.querySelectorAll('td')[1];
+            const bCell = b.querySelectorAll('td')[1];
+            // Get the span's text content or the cell's text content
+            const aSpan = aCell ? aCell.querySelector('span') : null;
+            const bSpan = bCell ? bCell.querySelector('span') : null;
+            aVal = aSpan ? parseInt(aSpan.textContent.trim()) : 0;
+            bVal = bSpan ? parseInt(bSpan.textContent.trim()) : 0;
+          } else if (sortKey === 'updated') {
+            // Updated is the last td (index 2 for "with alerts" table, index 3 for "without alerts")
+            const aCells = a.querySelectorAll('td');
+            const bCells = b.querySelectorAll('td');
+            const aLastIdx = aCells.length - 1;
+            const bLastIdx = bCells.length - 1;
+            aVal = getCellValue(a, aLastIdx);
+            bVal = getCellValue(b, bLastIdx);
+            // Parse Finnish date format (dd.mm.yyyy)
+            const aParts = aVal.split('.');
+            const bParts = bVal.split('.');
+            aVal = new Date(aParts[2], aParts[1] - 1, aParts[0]);
+            bVal = new Date(bParts[2], bParts[1] - 1, bParts[0]);
+          } else if (sortKey === 'description') {
+            // Description is the second td (index 1) for "without alerts" table
+            aVal = getCellValue(a, 1).toLowerCase();
+            bVal = getCellValue(b, 1).toLowerCase();
+          } else {
+            // Fallback: try to get by index
+            const cells = row.querySelectorAll('td');
+            const idx = Array.from(table.querySelector('thead tr').children).findIndex(
+              th => th.getAttribute('data-sort') === sortKey
+            ) - 1; // Subtract 1 because first column is <th>, not <td>
+            aVal = getCellValue(a, idx).toLowerCase();
+            bVal = getCellValue(b, idx).toLowerCase();
+          }
+          
+          if (aVal === '-') return 1;
+          if (bVal === '-') return -1;
+          
+          if (aVal < bVal) return isAscending ? -1 : 1;
+          if (aVal > bVal) return isAscending ? 1 : -1;
+          return 0;
+        });
+        
+        // Re-append sorted rows
+        sortedRows.forEach(row => tbody.appendChild(row));
+        
+        currentSort = { column: sortKey, ascending: isAscending };
+      });
+    });
+  });
+});
+</script>
+
 </body>
 </html>

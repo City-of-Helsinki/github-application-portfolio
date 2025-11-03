@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html class="light" lang="fi">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title><%= title %></title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <script>
+      tailwind.config = { darkMode: "class", theme: { extend: { colors: {"primary":"#0b73da","background-light":"#f5f7f8","background-dark":"#101922"}, fontFamily: {"display":["Inter","sans-serif"]}, borderRadius: {"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"} } } }
+  </script>
+  <style>.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}</style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
+<div class="flex min-h-screen">
+  <%- include("components/sidebar") %>
+  <main class="flex-1 p-8">
+    <div class="flex flex-wrap justify-between gap-3 mb-8">
+      <div class="flex min-w-72 flex-col gap-2">
+        <h1 class="text-4xl font-black leading-tight tracking-[-0.033em] text-[#0d141c] dark:text-white">Code Scanning</h1>
+        <p class="text-base text-slate-500 dark:text-slate-400">Organisaation code scanning -alertit. Sisältää avoimet ja dismissed-alertit.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="/api/code-scanning/export.csv?<%= encodeURIComponent(new URLSearchParams(filters||{}).toString()) %>" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+          <span class="material-symbols-outlined text-sm">download</span>
+          <span class="text-sm font-medium">Export CSV</span>
+        </a>
+      </div>
+    </div>
+
+    <% if (fallbackUsed) { %>
+      <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 px-4 py-3">
+        Käytetään varapolkua (per-repo haku). Näyttö voi olla hitaampi tai epätäydellinen org-rajapintaan verrattuna.
+      </div>
+    <% } %>
+
+    <form method="get" class="mb-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Tila</label>
+          <select name="state" class="form-select w-full rounded-lg bg-slate-100 dark:bg-slate-800 border-none text-sm">
+            <option value="">Kaikki</option>
+            <option value="open" <%= (filters&&filters.state)==='open'?'selected':'' %>>Open</option>
+            <option value="closed" <%= (filters&&filters.state)==='closed'?'selected':'' %>>Dismissed</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Severity</label>
+          <select name="severity" class="form-select w-full rounded-lg bg-slate-100 dark:bg-slate-800 border-none text-sm">
+            <option value="">Kaikki</option>
+            <option value="critical" <%= (filters&&filters.severity)==='critical'?'selected':'' %>>Critical</option>
+            <option value="high" <%= (filters&&filters.severity)==='high'?'selected':'' %>>High</option>
+            <option value="medium" <%= (filters&&filters.severity)==='medium'?'selected':'' %>>Medium</option>
+            <option value="low" <%= (filters&&filters.severity)==='low'?'selected':'' %>>Low</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Tool</label>
+          <input name="tool" value="<%= (filters&&filters.tool)||'' %>" class="form-input w-full rounded-lg bg-slate-100 dark:bg-slate-800 border-none text-sm" placeholder="esim. CodeQL" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Repository</label>
+          <input name="repo" value="<%= (filters&&filters.repo)||'' %>" class="form-input w-full rounded-lg bg-slate-100 dark:bg-slate-800 border-none text-sm" placeholder="owner/repo" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs text-slate-500 mb-1">Haku</label>
+          <input name="q" value="<%= (filters&&filters.q)||'' %>" class="form-input w-full rounded-lg bg-slate-100 dark:bg-slate-800 border-none text-sm" placeholder="rule, kuvaus tai repo" />
+        </div>
+      </div>
+      <div class="mt-3 flex items-center gap-3">
+        <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm">Suodata</button>
+        <a href="/code-scanning" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-sm">Tyhjennä</a>
+      </div>
+    </form>
+
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+      <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">Alertit yhteensä</p>
+        <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary&&summary.total)||0 %></p>
+      </div>
+      <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">Open</p>
+        <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary&&summary.open)||0 %></p>
+      </div>
+      <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">Dismissed</p>
+        <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary&&summary.dismissed)||0 %></p>
+      </div>
+      <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">High/Critical</p>
+        <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary&&summary.high)||0 %> / <%= (summary&&summary.critical)||0 %></p>
+      </div>
+      <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">Medium/Low</p>
+        <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary&&summary.medium)||0 %> / <%= (summary&&summary.low)||0 %></p>
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 overflow-x-auto">
+      <% if (!alerts || alerts.length === 0) { %>
+        <p class="text-slate-500 dark:text-slate-400">Ei alertteja valituilla suodattimilla.</p>
+      <% } else { %>
+        <table class="w-full text-left text-sm">
+          <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800">
+            <tr>
+              <th class="px-6 py-3">Repository</th>
+              <th class="px-6 py-3">Rule</th>
+              <th class="px-6 py-3">Severity</th>
+              <th class="px-6 py-3">State</th>
+              <th class="px-6 py-3">Introduced</th>
+              <th class="px-6 py-3">Last seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% alerts.forEach(function(a){ %>
+              <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <td class="px-6 py-4"><a class="hover:text-primary" href="<%= a.repoHtmlUrl %>" target="_blank" rel="noopener"><%= a.repoFullName %></a></td>
+                <td class="px-6 py-4"><a class="hover:text-primary" href="<%= a.htmlUrl %>" target="_blank" rel="noopener"><%= a.ruleId || a.ruleDescription || '-' %></a></td>
+                <td class="px-6 py-4 text-slate-500"><%= a.severity || '-' %></td>
+                <td class="px-6 py-4 text-slate-500"><%= a.state %></td>
+                <td class="px-6 py-4 text-slate-500"><%= a.createdAt ? new Date(a.createdAt).toLocaleDateString('fi-FI') : '-' %></td>
+                <td class="px-6 py-4 text-slate-500"><%= a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('fi-FI') : '-' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+
+    <div class="mt-4 flex items-center justify-between">
+      <div class="text-sm text-slate-500">Sivu <%= page %> / <%= totalPages %> • <%= total %> alerttia</div>
+      <div class="flex gap-2">
+        <% if (page > 1) { %>
+          <a class="px-3 py-1 rounded border border-slate-300 dark:border-slate-700" href="?<%= new URLSearchParams({ ...filters, page: String(page-1), per_page: String(perPage) }).toString() %>">Edellinen</a>
+        <% } %>
+        <% if (page < totalPages) { %>
+          <a class="px-3 py-1 rounded border border-slate-300 dark:border-slate-700" href="?<%= new URLSearchParams({ ...filters, page: String(page+1), per_page: String(perPage) }).toString() %>">Seuraava</a>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('components/loader') %>
+</body>
+</html>
+
+

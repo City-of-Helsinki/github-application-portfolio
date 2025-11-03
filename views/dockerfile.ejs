@@ -55,53 +55,7 @@
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
 <div class="flex min-h-screen">
-<aside class="w-64 bg-white dark:bg-background-dark border-r border-slate-200 dark:border-slate-800 p-4 flex flex-col justify-between">
-<div>
-<div class="flex justify-center mb-8 px-4">
-<img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNzggMzYiIHRpdGxlPSJIZWxzaW5naW4ga2F1cHVua2kiIHJvbGU9ImltZyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoCiAgICAgICAgZD0iTTc1Ljc1MyAyLjI1MXYyMC43YzAgMy45NS0zLjI3NSA3LjE3OC03LjMxIDcuMTc4aC0yMi4yNmMtMi42NzQgMC01LjIwNS45Ni03LjE4MyAyLjczOWExMC43NDkgMTAuNzQ5IDAgMDAtNy4xODMtMi43NEg5LjUwOWMtNC4wMDMgMC03LjI0Ny0zLjIxLTcuMjQ3LTcuMTc3VjIuMjVoNzMuNDkxek00MC4xODcgMzQuODM1YTguNDcgOC40NyAwIDAxNi4wMTItMi40NzFoMjIuMjQ1YzUuMjY4IDAgOS41NTYtNC4yMTkgOS41NTYtOS40MTNWMEgwdjIyLjkzNWMwIDUuMTk0IDQuMjU2IDkuNDEzIDkuNTA5IDkuNDEzaDIyLjMwOGMyLjI2MyAwIDQuMzk4Ljg4MiA2LjAxMiAyLjQ3MUwzOS4wMTYgMzZsMS4xNy0xLjE2NXoiCiAgICAgICAgZmlsbD0iY3VycmVudENvbG9yIiAvPgogICAgPHBhdGgKICAgICAgICBkPSJNNjcuNTIyIDExLjY3NmMwIC42ODEtLjU1NiAxLjE3Ny0xLjI1NSAxLjE3Ny0uNyAwLTEuMjU1LS40OTYtMS4yNTUtMS4xNzcgMC0uNjgyLjU1Ni0xLjE3OCAxLjI1NS0xLjE3OC43LS4wMyAxLjI1NS40NjUgMS4yNTUgMS4xNzh6bS0yLjM1MiA5LjYyMmgyLjE3OHYtNy41NDZINjUuMTd2Ny41NDZ6bS0zLjkwOS00LjU1NmwyLjg0NSA0LjU1NmgtMi4zNjhsLTEuOTA3LTMuMDIyLTEuMDMzIDEuMjcxdjEuNzVoLTIuMTYxVjEwLjQ1M2gyLjE2djUuMDA0YzAtLjkzLS4xMSAxLjg2LS4xMSAxLjg2aC4wNDdzLjUwOS0uODIxLjkzOC0xLjQxbDEuNjUzLTIuMTU0aDIuNTQybC0yLjYwNiAyLjk5em0tNi44MTctLjI3OGMwLTEuODc1LS45MzgtMi44OTgtMi40MzItMi44OTgtMS4yNzEgMC0xLjkzOS43MjgtMi4zMiAxLjQyNmgtLjA0OGwuMTEyLTEuMjRoLTIuMTYydjcuNTQ2aDIuMTYyVjE2LjgyYzAtLjg2OC41MjQtMS40NzIgMS4zMzUtMS40NzIuODEgMCAxLjE2LjUyNyAxLjE2IDEuNTM0djQuNDE2aDIuMTc3bC4wMTYtNC44MzR6bS04LjkzMS00Ljc4OGMwIC42ODEtLjU1NyAxLjE3Ny0xLjI1NiAxLjE3Ny0uNyAwLTEuMjU1LS40OTYtMS4yNTUtMS4xNzcgMC0uNjgyLjU1Ni0xLjE3OCAxLjI1NS0xLjE3OC43MTUtLjAzIDEuMjU2LjQ2NSAxLjI1NiAxLjE3OHptLTIuMzUyIDkuNjIyaDIuMTc3di03LjU0Nkg0My4xNnY3LjU0NnptLTMuNzUtMi4xMDdjMC0uNjA5LS44NTktLjcyOS0xLjg2LTEuMDA4LTEuMTYtLjI5NC0yLjYyMi0uODY3LTIuNjIyLTIuMzA4IDAtMS40MjYgMS4zOTgtMi4zMjQgMy4wNTEtMi4zMjQgMS41NDEgMCAyLjk1Ni43MTIgMy41NDQgMS43MmwtMS44NiAxLjAyMmMtLjE5LS42NjYtLjc2Mi0xLjE5My0xLjYyLTEuMTkzLS41NTcgMC0xLjAxOC4yMzItMS4wMTguNjgyIDAgLjU3MyAxLjAxOC42MzUgMi4xNjIuOTkxIDEuMjA4LjM3MiAyLjMyLjkxNSAyLjMyIDIuMjk0IDAgMS41MTgtMS40NDYgMi40MTctMy4xMTUgMi40MTctMS44MTEgMC0zLjI0Mi0uNzQ0LTMuODc3LTEuOTUybDEuODktMS4wMzljLjI0LjgyMi45MjIgMS40NDEgMS45NTUgMS40NDEuNjIgMCAxLjA1LS4yNDggMS4wNS0uNzQzem0tNi44ODItOC42NzdoLTIuMTc3djguNjkyYzAgLjc3NS4xNzUgMS4zNDguNTA5IDEuNzA1LjM1LjM1Ni44OS41MjYgMS42MzYuNTI2LjI1NSAwIC41MjUtLjAzLjc4LS4wNzcuMjctLjA2Mi40NzYtLjE0LjY1LS4yMzNsLjE5MS0xLjQyNWEyLjA3IDIuMDcgMCAwMS0uNDYuMTI0Yy0uMTI4LjAzLS4yODcuMDMtLjQ2MS4wMy0uMjg2IDAtLjQxNC0uMDc3LS41MDktLjIxNi0uMTExLS4xNC0uMTU5LS4zODctLjE1OS0uNzQ0di04LjM4MnptLTcuMjQ2IDQuNTdjLS43OTUgMC0xLjQ0Ni41NTgtMS42MjEgMS41ODFoMy4wNWMuMDE3LS44OTktLjU4Ny0xLjU4LTEuNDMtMS41OHptMy4zNTMgMy4wMDdIMjMuNjNjLjA5NSAxLjIyNC43OTQgMS44MjggMS43IDEuODI4LjgxIDAgMS4zNjctLjUyNyAxLjQ5NC0xLjI0bDEuODI4IDEuMDA3Yy0uNTQuOTYxLTEuNyAxLjc5OC0zLjMyMiAxLjc5OC0yLjE2IDAtMy43NS0xLjQ3Mi0zLjc1LTMuOTUxIDAtMi40NjQgMS42Mi0zLjk1MSAzLjcwMy0zLjk1MSAyLjA4MSAwIDMuNDY0IDEuNDQgMy40NjQgMy40ODYtLjAxNi42MDQtLjExMSAxLjAyMy0uMTExIDEuMDIzem0tMTEuMDc3IDMuMjA3aDIuMjU3VjEwLjkxNmgtMi4yNTd2NC4xMDdoLTQuMjQzdi00LjA5MUgxMS4wNnYxMC4zNjZoMi4yNTZ2LTQuMjkyaDQuMjQzdjQuMjkyeiIKICAgICAgICBmaWxsPSJjdXJyZW50Q29sb3IiIC8+Cjwvc3ZnPg==" alt="Helsingin kaupunki" class="w-full h-auto max-w-full">
-</div>
-<div class="flex flex-col mb-8">
-<h1 class="text-[#0d141c] dark:text-white text-base font-medium leading-normal">Sovellusportfolio</h1>
-<p class="text-[#49739c] dark:text-slate-400 text-sm font-normal leading-normal">GitHub</p>
-</div>
-<nav class="flex flex-col gap-2">
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/">
-<span class="material-symbols-outlined">dashboard</span>
-<p class="text-sm font-medium">Etusivu</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 rounded-lg bg-primary/10 text-primary" href="/dockerfile">
-<i class="fab fa-docker"></i>
-<p class="text-sm font-medium">Dockerfile</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/django">
-<i class="fab fa-python"></i>
-<p class="text-sm font-medium">Django</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/react">
-<i class="fab fa-react"></i>
-<p class="text-sm font-medium">React</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/drupal">
-<i class="fab fa-drupal"></i>
-<p class="text-sm font-medium">Drupal</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/dependabot">
-<i class="fas fa-shield-alt"></i>
-<p class="text-sm font-medium">Dependabot</p>
-</a>
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/hds">
-<i class="fas fa-palette"></i>
-<p class="text-sm font-medium">HDS</p>
-</a>
-</nav>
-</div>
-<div class="mt-auto">
-<a class="flex items-center gap-4 px-3 py-2 text-[#0d141c] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" href="/settings">
-<span class="material-symbols-outlined">settings</span>
-<p class="text-sm font-medium">Asetukset</p>
-</a>
-</div>
-</aside>
+<%- include("components/sidebar") %>
 
 <main class="flex-1 overflow-y-auto">
 <div class="p-8">
@@ -112,6 +66,7 @@
 <div>
 <h1 class="text-3xl font-bold text-[#0d141c] dark:text-white">Docker-sovellukset</h1>
 <p class="text-slate-500 dark:text-slate-400 mt-1">Docker image -tietojen yleiskatsaus</p>
+<p class="text-slate-500 dark:text-slate-400 mt-1">TODO: Dockerfile-tiedoston haku muista kuin root-kansiosta ja EOL-tietojen lisääminen</p>
 </div>
 </div>
 <div class="flex items-center gap-3">
@@ -143,10 +98,10 @@ Ladataan...
 <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.uniqueBaseImages %></p>
 <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Unikaaleja imageita</p>
 </div>
-<div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 border-l-4 border-l-red-500">
-<p class="text-base font-medium text-[#0d141c] dark:text-slate-300">EOL base imageit</p>
-<p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= eolStats.eol %></p>
-<p class="text-sm font-medium text-red-600">Ei tueta</p>
+<div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+<p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Base image -tyypit</p>
+<p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.uniqueBaseImages %></p>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">Unikaaleja imageita</p>
 </div>
 </div>
 
@@ -159,26 +114,12 @@ Ladataan...
 </div>
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 <% baseImageStats.forEach(function(stat) { %>
-<div class="flex flex-col gap-2 p-4 rounded-lg border <%= stat.eol.status === 'eol' ? 'border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/10' : stat.eol.status === 'supported' ? 'border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-900/10' : 'border-slate-200 dark:border-slate-800' %>">
+<div class="flex flex-col gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
 <div class="flex items-center justify-between">
 <span class="text-lg font-bold text-[#0d141c] dark:text-white font-mono break-all"><%= stat.image %></span>
-<% if (stat.eol.status === 'eol') { %>
-<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200">
-<span class="material-symbols-outlined text-sm">warning</span>
-EOL
-</span>
-<% } else if (stat.eol.status === 'supported') { %>
-<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200">
-<span class="material-symbols-outlined text-sm">check_circle</span>
-Tuettu
-</span>
-<% } %>
 </div>
 <p class="text-3xl font-bold text-primary"><%= stat.count %></p>
-<p class="text-sm text-slate-500 dark:text-slate-400"><%= stat.eol.description %></p>
-<% if (stat.eol.eol_date) { %>
-<p class="text-xs text-slate-400 dark:text-slate-500">EOL: <%= stat.eol.eol_date %></p>
-<% } %>
+<p class="text-sm text-slate-500 dark:text-slate-400">sovellusta</p>
 </div>
 <% }); %>
 </div>
@@ -208,7 +149,6 @@ Tuettu
 <tr>
 <th class="px-6 py-3" scope="col">Repository</th>
 <th class="px-6 py-3" scope="col">Base Image</th>
-<th class="px-6 py-3" scope="col">EOL Status</th>
 <th class="px-6 py-3" scope="col">Päivitetty</th>
 </tr>
 </thead>
@@ -225,25 +165,6 @@ Tuettu
 <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">
 <%= repo.docker_base_image %>
 </span>
-</td>
-<td class="px-6 py-4">
-<% const eolInfo = repo.docker_eol || checkDockerEOL(repo.docker_base_image); %>
-<% if (eolInfo.status === 'eol') { %>
-<span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200">
-<span class="material-symbols-outlined text-sm">warning</span>
-EOL
-</span>
-<% } else if (eolInfo.status === 'supported') { %>
-<span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200">
-<span class="material-symbols-outlined text-sm">check_circle</span>
-Tuettu
-</span>
-<% } else { %>
-<span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-<span class="material-symbols-outlined text-sm">help</span>
-Tuntematon
-</span>
-<% } %>
 </td>
 <td class="px-6 py-4 text-slate-500 dark:text-slate-400">
 <%= new Date(repo.updated_at).toLocaleDateString('fi-FI') %>
@@ -311,5 +232,8 @@ Tuntematon
 </div>
 </main>
 </div>
+
+<!-- Page Loader -->
+<%- include('components/loader') %>
 </body>
 </html>

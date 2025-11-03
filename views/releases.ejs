@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html class="light" lang="fi">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title><%= title %></title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}</style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
+<div class="flex min-h-screen">
+  <%- include("components/sidebar") %>
+  <main class="flex-1 p-8">
+    <h1 class="text-4xl font-black mb-4">Releases</h1>
+    <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+      <% if ((releases||[]).length === 0) { %>
+        <p class="text-slate-500 dark:text-slate-400">Ei julkaisuja.</p>
+      <% } else { %>
+        <ul class="divide-y divide-slate-200 dark:divide-slate-800">
+          <% releases.forEach(function(r){ %>
+            <li class="py-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="font-semibold"><%= r.repo %></p>
+                  <a class="hover:text-primary" href="<%= r.html_url %>" target="_blank" rel="noopener"><%= r.name || r.tag_name %></a>
+                </div>
+                <span class="text-slate-500"><%= r.tag_name %></span>
+              </div>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </div>
+  </main>
+</div>
+<%- include('components/loader') %>
+</body>
+</html>
+
+

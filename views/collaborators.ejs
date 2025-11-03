@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html class="light" lang="fi">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0b73da",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <script>
+    function refreshData() {
+        const refreshBtn = document.getElementById("refresh-btn");
+        const refreshStatus = document.getElementById("refresh-status");
+        
+        if (refreshBtn) refreshBtn.classList.add("hidden");
+        if (refreshStatus) refreshStatus.classList.remove("hidden");
+        
+        const currentPath = window.location.pathname;
+        window.location.href = currentPath + "?refresh=true";
+    }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
+<div class="flex min-h-screen">
+  <%- include("components/sidebar") %>
+  <main class="flex-1 overflow-y-auto">
+    <div class="p-8">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-4">
+          <span class="material-symbols-outlined text-4xl text-primary">diversity_3</span>
+          <div>
+            <h1 class="text-3xl font-bold text-[#0d141c] dark:text-white">Collaborators</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1">Repository-kohtaiset yhteistyökumppanit</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="refresh-btn" onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-sm">refresh</span>
+            Päivitä tiedot
+          </button>
+          <div id="refresh-status" class="hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500">
+            <span class="material-symbols-outlined text-sm animate-spin">sync</span>
+            Ladataan...
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Analysoidut repositoryt</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.totalRepos || repositories.length %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhteensä</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Repositoryt collaboratoreilla</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.reposWithCollaborators || 0 %></p>
+          <p class="text-sm font-medium text-green-600">Aktiiviset</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Unikaaleja collaboratoreita</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.uniqueCollaboratorsCount || 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhteensä</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Yhteensä collaborator-yhteyksiä</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.totalCollaborators || 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhteensä</p>
+        </div>
+      </div>
+
+      <!-- Top Collaborators -->
+      <% if (stats.topCollaborators && stats.topCollaborators.length > 0) { %>
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-8">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="material-symbols-outlined text-2xl text-primary">person</span>
+          <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Top collaboratorit</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <% stats.topCollaborators.forEach(function(collab, index) { %>
+          <div class="flex items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800">
+            <div class="flex items-center gap-3">
+              <span class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold bg-primary/10 text-primary">
+                <%= index + 1 %>
+              </span>
+              <a href="https://github.com/<%= collab.login %>" target="_blank" rel="noopener" class="font-medium text-[#0d141c] dark:text-white hover:text-primary">
+                <%= collab.login %>
+              </a>
+            </div>
+            <span class="text-sm font-bold text-primary"><%= collab.count %> repo</span>
+          </div>
+          <% }); %>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Permission Statistics -->
+      <% if (stats.collaboratorsByPermission && Object.keys(stats.collaboratorsByPermission).length > 0) { %>
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-8">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="material-symbols-outlined text-2xl text-primary">security</span>
+          <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Oikeuksien jakautuma</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <% Object.entries(stats.collaboratorsByPermission).forEach(function([permission, count]) { %>
+          <div class="flex items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800">
+            <span class="font-medium text-[#0d141c] dark:text-white capitalize"><%= permission %></span>
+            <span class="text-sm font-bold text-primary"><%= count %></span>
+          </div>
+          <% }); %>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Repositories with Collaborators -->
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-2xl text-primary">inventory_2</span>
+            <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Repositoryt collaboratoreilla</h2>
+          </div>
+          <span class="text-sm text-slate-500 dark:text-slate-400"><%= repositories.length %> repositoryä</span>
+        </div>
+
+        <% if (repositories.length === 0) { %>
+        <div class="text-center py-12">
+          <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-600">inbox</span>
+          <h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400 mt-4">Ei repositoryjä</h3>
+          <p class="text-slate-400 dark:text-slate-500 mt-2">Yhtään repositoryä ei löytynyt.</p>
+        </div>
+        <% } else { %>
+        <div class="space-y-4">
+          <% repositories.forEach(function(repo) { %>
+          <% if (repo.collaborators && repo.collaborators.length > 0) { %>
+          <div class="border border-slate-200 dark:border-slate-800 rounded-lg p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+            <div class="flex items-center justify-between mb-3">
+              <a href="<%= repo.html_url %>" target="_blank" rel="noopener" class="font-semibold text-[#0d141c] dark:text-white hover:text-primary flex items-center gap-2">
+                <i class="fab fa-github"></i>
+                <%= repo.name %>
+              </a>
+              <span class="text-sm text-slate-500 dark:text-slate-400">
+                <%= repo.collaborators.length %> collaborator<%= repo.collaborators.length !== 1 ? 'ia' : '' %>
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <% repo.collaborators.forEach(function(collab) { %>
+              <div class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <% if (collab.avatar_url) { %>
+                <img src="<%= collab.avatar_url %>" alt="<%= collab.login %>" class="w-6 h-6 rounded-full">
+                <% } else { %>
+                <div class="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span class="material-symbols-outlined text-xs text-primary">person</span>
+                </div>
+                <% } %>
+                <a href="<%= collab.html_url %>" target="_blank" rel="noopener" class="text-sm font-medium text-[#0d141c] dark:text-white hover:text-primary">
+                  <%= collab.login %>
+                </a>
+                <span class="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 capitalize">
+                  <%= collab.permission %>
+                </span>
+              </div>
+              <% }); %>
+            </div>
+          </div>
+          <% } %>
+          <% }); %>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('components/loader') %>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html class="light" lang="fi">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0b73da",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <script>
+    function refreshData() {
+        const refreshBtn = document.getElementById("refresh-btn");
+        const refreshStatus = document.getElementById("refresh-status");
+        
+        if (refreshBtn) refreshBtn.classList.add("hidden");
+        if (refreshStatus) refreshStatus.classList.remove("hidden");
+        
+        const currentPath = window.location.pathname;
+        window.location.href = currentPath + "?refresh=true";
+    }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
+<div class="flex min-h-screen">
+  <%- include("components/sidebar") %>
+  <main class="flex-1 overflow-y-auto">
+    <div class="p-8">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-4">
+          <span class="material-symbols-outlined text-4xl text-primary">merge</span>
+          <div>
+            <h1 class="text-3xl font-bold text-[#0d141c] dark:text-white">Pull Requests</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1">Organisaation yhdistelmäpyynnöt</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="refresh-btn" onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-sm">refresh</span>
+            Päivitä tiedot
+          </button>
+          <div id="refresh-status" class="hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500">
+            <span class="material-symbols-outlined text-sm animate-spin">sync</span>
+            Ladataan...
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Avoimet PR:t</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.byState.open || 0 %></p>
+          <p class="text-sm font-medium text-orange-600">Aktiiviset</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Suljetut PR:t</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.byState.closed || 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhdistetty/suljettu</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Draft PR:t</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.byDraft.draft || 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Luonnoksena</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Yhteensä PR:t</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats.total || 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhteensä</p>
+        </div>
+      </div>
+
+      <!-- State Filter -->
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-8">
+        <div class="flex items-center gap-4">
+          <span class="text-sm text-slate-500 dark:text-slate-400">Tila:</span>
+          <a href="/pull-requests?state=open" class="px-4 py-2 rounded-lg text-sm font-medium <%= currentState === 'open' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700' %>">
+            Avoimet (<%= stats.byState.open || 0 %>)
+          </a>
+          <a href="/pull-requests?state=closed" class="px-4 py-2 rounded-lg text-sm font-medium <%= currentState === 'closed' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700' %>">
+            Suljetut (<%= stats.byState.closed || 0 %>)
+          </a>
+        </div>
+      </div>
+
+      <!-- Top Repositories -->
+      <% if (stats.topRepositories && stats.topRepositories.length > 0) { %>
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-8">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="material-symbols-outlined text-2xl text-primary">bar_chart</span>
+          <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Top repositoryt PR:illä</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <% stats.topRepositories.forEach(function(repo, index) { %>
+          <div class="flex items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800">
+            <div class="flex items-center gap-3">
+              <span class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold bg-primary/10 text-primary">
+                <%= index + 1 %>
+              </span>
+              <span class="font-medium text-[#0d141c] dark:text-white text-sm truncate"><%= repo.repo %></span>
+            </div>
+            <span class="text-sm font-bold text-primary"><%= repo.count %></span>
+          </div>
+          <% }); %>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Pull Requests List -->
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-2xl text-primary">inventory_2</span>
+            <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Pull Requests</h2>
+          </div>
+          <span class="text-sm text-slate-500 dark:text-slate-400"><%= pullRequests.length %> PR:tä</span>
+        </div>
+
+        <% if (pullRequests.length === 0) { %>
+        <div class="text-center py-12">
+          <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-600">inbox</span>
+          <h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400 mt-4">Ei Pull Requests</h3>
+          <p class="text-slate-400 dark:text-slate-500 mt-2">Yhtään <%= currentState === 'open' ? 'avoimia' : 'suljettua' %> Pull Requestia ei löytynyt.</p>
+        </div>
+        <% } else { %>
+        <div class="space-y-3">
+          <% pullRequests.forEach(function(pr) { %>
+          <div class="flex items-start gap-4 p-4 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+            <div class="flex-shrink-0">
+              <% if (pr.state === 'open') { %>
+              <span class="material-symbols-outlined text-green-500">merge</span>
+              <% } else if (pr.merged_at) { %>
+              <span class="material-symbols-outlined text-purple-500">check_circle</span>
+              <% } else { %>
+              <span class="material-symbols-outlined text-red-500">close</span>
+              <% } %>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between gap-3 mb-2">
+                <div class="flex items-center gap-2">
+                  <a href="<%= pr.html_url %>" target="_blank" rel="noopener" class="font-semibold text-[#0d141c] dark:text-white hover:text-primary text-base">
+                    <%= pr.title || 'Untitled' %>
+                  </a>
+                  <% if (pr.draft) { %>
+                  <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    Draft
+                  </span>
+                  <% } %>
+                  <% if (pr.merged_at) { %>
+                  <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-200">
+                    Yhdistetty
+                  </span>
+                  <% } %>
+                </div>
+                <% if (pr.comments) { %>
+                <div class="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
+                  <span class="material-symbols-outlined text-sm">comment</span>
+                  <%= pr.comments %>
+                </div>
+                <% } %>
+              </div>
+              <div class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400 mb-2">
+                <span>#<%= pr.number %></span>
+                <span>•</span>
+                <span><%= pr.repository_url ? pr.repository_url.split('/').slice(-2).join('/') : 'Unknown repo' %></span>
+                <span>•</span>
+                <span>Päivitetty <%= pr.updated_at ? new Date(pr.updated_at).toLocaleDateString('fi-FI') : '-' %></span>
+                <% if (pr.user) { %>
+                <span>•</span>
+                <span>Tekijä: <a href="<%= pr.user.html_url %>" target="_blank" rel="noopener" class="hover:text-primary"><%= pr.user.login %></a></span>
+                <% } %>
+              </div>
+              <% if (pr.labels && pr.labels.length > 0) { %>
+              <div class="flex flex-wrap gap-2 mt-2">
+                <% pr.labels.forEach(function(label) { %>
+                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300" style="<%= label.color ? 'background-color: #' + label.color + '20; color: #' + label.color + ';' : '' %>">
+                  <%= label.name || label %>
+                </span>
+                <% }); %>
+              </div>
+              <% } %>
+            </div>
+          </div>
+          <% }); %>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('components/loader') %>
+</body>
+</html>

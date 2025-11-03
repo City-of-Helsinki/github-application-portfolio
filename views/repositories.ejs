@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html class="light" lang="fi">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0b73da",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+    <script>
+    function refreshData() {
+        const refreshBtn = document.getElementById("refresh-btn");
+        const refreshStatus = document.getElementById("refresh-status");
+        
+        if (refreshBtn) refreshBtn.classList.add("hidden");
+        if (refreshStatus) refreshStatus.classList.remove("hidden");
+        
+        const currentPath = window.location.pathname;
+        window.location.href = currentPath + "?refresh=true";
+    }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
+<div class="flex min-h-screen">
+  <%- include('components/sidebar') %>
+  <main class="flex-1 overflow-y-auto">
+    <div class="p-8">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-4">
+          <span class="material-symbols-outlined text-4xl text-primary">folder</span>
+          <div>
+            <h1 class="text-3xl font-bold text-[#0d141c] dark:text-white">Repositoryt</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1">Organisaation repositoryt</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="refresh-btn" onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-sm">refresh</span>
+            Päivitä tiedot
+          </button>
+          <div id="refresh-status" class="hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500">
+            <span class="material-symbols-outlined text-sm animate-spin">sync</span>
+            Ladataan...
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Repositoryt</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white" id="total-repos"><%= stats ? stats.total : 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhteensä</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Tähdet yhteensä</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white" id="total-stars">
+            <%= stats ? stats.totalStars : 0 %>
+          </p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhteensä</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Forkit yhteensä</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white" id="total-forks">
+            <%= stats ? stats.totalForks : 0 %>
+          </p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhteensä</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Aktiiviset</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white" id="active-repos">
+            <%= stats ? stats.active : 0 %>
+          </p>
+          <p class="text-sm font-medium text-green-600">Ei arkistoitu</p>
+        </div>
+      </div>
+
+      <!-- Filters and Search -->
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-8">
+        <div class="flex flex-col md:flex-row gap-4">
+          <div class="flex-1">
+            <label class="flex items-center gap-2 w-full rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-2">
+              <span class="material-symbols-outlined text-slate-400">search</span>
+              <input 
+                id="search-input" 
+                type="text" 
+                placeholder="Hae repositoryjä..." 
+                class="w-full flex-1 border-none bg-transparent text-[#0d141c] dark:text-white placeholder:text-slate-400 focus:outline-none text-sm"
+              />
+            </label>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="text-sm text-slate-500 dark:text-slate-400">Suodata:</label>
+            <select id="language-filter" class="form-select rounded-lg bg-slate-100 dark:bg-slate-800 border-none text-[#0d141c] dark:text-white text-sm focus:ring-primary focus:border-primary">
+              <option value="">Kaikki kielet</option>
+            </select>
+            <select id="sort-filter" class="form-select rounded-lg bg-slate-100 dark:bg-slate-800 border-none text-[#0d141c] dark:text-white text-sm focus:ring-primary focus:border-primary">
+              <option value="updated">Viimeksi päivitetty</option>
+              <option value="stars">Tähtien mukaan</option>
+              <option value="forks">Forkkien mukaan</option>
+              <option value="name">Nimen mukaan</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Repositories Table -->
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-2xl text-primary">inventory_2</span>
+            <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Repositoryt</h2>
+          </div>
+          <span class="text-sm text-slate-500 dark:text-slate-400" id="filtered-count">
+            <%= stats ? stats.total : 0 %> repositoryä
+          </span>
+        </div>
+
+        <% if (!repositories || repositories.length === 0) { %>
+        <div class="text-center py-12">
+          <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-600">folder_open</span>
+          <h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400 mt-4">Ei repositoryjä</h3>
+          <p class="text-slate-400 dark:text-slate-500 mt-2">Yhtään repositoryä ei löytynyt.</p>
+        </div>
+        <% } else { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm" id="repos-table">
+            <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800">
+              <tr>
+                <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700" data-sort="name">Repository</th>
+                <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700" data-sort="language">Kieli</th>
+                <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700" data-sort="stars">Tähdet</th>
+                <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700" data-sort="forks">Forkit</th>
+                <th class="px-6 py-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700" data-sort="updated">Päivitetty</th>
+                <th class="px-6 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody id="repos-tbody">
+              <% repositories.forEach(function(repo) { %>
+              <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 repo-row" 
+                  data-name="<%= (repo.name || '').toLowerCase() %>"
+                  data-language="<%= (repo.language || '').toLowerCase() %>"
+                  data-stars="<%= repo.stargazers_count || 0 %>"
+                  data-forks="<%= repo.forks_count || 0 %>"
+                  data-updated="<%= new Date(repo.updated_at || 0).getTime() %>"
+                  data-archived="<%= repo.archived ? 'true' : 'false' %>">
+                <td class="px-6 py-4 font-medium">
+                  <div class="flex items-center gap-2">
+                    <i class="fab fa-github text-primary"></i>
+                    <a href="<%= repo.html_url %>" target="_blank" rel="noopener" class="hover:text-primary">
+                      <%= repo.full_name || repo.name %>
+                    </a>
+                    <% if (repo.archived) { %>
+                    <span class="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Arkistoitu</span>
+                    <% } %>
+                  </div>
+                  <% if (repo.description) { %>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md truncate"><%= repo.description %></p>
+                  <% } %>
+                </td>
+                <td class="px-6 py-4">
+                  <% if (repo.language) { %>
+                  <span class="inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium" style="background-color: <%= getLanguageColor(repo.language) %>20; color: <%= getLanguageColor(repo.language) %>;">
+                    <span class="w-2 h-2 rounded-full" style="background-color: <%= getLanguageColor(repo.language) %>;"></span>
+                    <%= repo.language %>
+                  </span>
+                  <% } else { %>
+                  <span class="text-slate-400">-</span>
+                  <% } %>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm text-yellow-500">star</span>
+                    <span class="text-slate-600 dark:text-slate-300"><%= repo.stargazers_count || 0 %></span>
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm text-slate-500">call_split</span>
+                    <span class="text-slate-600 dark:text-slate-300"><%= repo.forks_count || 0 %></span>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-slate-500 dark:text-slate-400">
+                  <%= repo.updated_at ? new Date(repo.updated_at).toLocaleDateString('fi-FI') : '-' %>
+                </td>
+                <td class="px-6 py-4">
+                  <% if (repo.archived) { %>
+                  <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    <span class="material-symbols-outlined text-sm">archive</span>
+                    Arkistoitu
+                  </span>
+                  <% } else { %>
+                  <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200">
+                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                    Aktiivinen
+                  </span>
+                  <% } %>
+                </td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const repos = <%= JSON.stringify(repositories || []).replace(/</g, '\\u003c') %>;
+  const repoRows = document.querySelectorAll('.repo-row');
+  const searchInput = document.getElementById('search-input');
+  const languageFilter = document.getElementById('language-filter');
+  const sortFilter = document.getElementById('sort-filter');
+  const filteredCount = document.getElementById('filtered-count');
+  const tbody = document.getElementById('repos-tbody');
+  
+  // Populate language filter
+  const availableLanguages = <%= JSON.stringify(languages || []).replace(/</g, '\\u003c') %>;
+  availableLanguages.forEach(lang => {
+    const option = document.createElement('option');
+    option.value = lang.toLowerCase();
+    option.textContent = lang;
+    languageFilter.appendChild(option);
+  });
+  
+  let currentSort = 'updated';
+  let currentSortDir = 'desc';
+  
+  function filterAndSort() {
+    const searchTerm = (searchInput.value || '').toLowerCase();
+    const languageTerm = (languageFilter.value || '').toLowerCase();
+    
+    let visible = 0;
+    repoRows.forEach(row => {
+      const name = row.dataset.name || '';
+      const language = row.dataset.language || '';
+      const matchesSearch = !searchTerm || name.includes(searchTerm);
+      const matchesLanguage = !languageTerm || language === languageTerm;
+      
+      if (matchesSearch && matchesLanguage) {
+        row.style.display = '';
+        visible++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+    
+    filteredCount.textContent = `${visible} repositoryä`;
+    sortTable();
+  }
+  
+  function sortTable() {
+    const visibleRows = Array.from(repoRows).filter(row => row.style.display !== 'none');
+    const sortField = sortFilter.value || 'updated';
+    const sortDir = currentSort === sortField && currentSortDir === 'desc' ? 'asc' : 'desc';
+    
+    if (currentSort === sortField) {
+      currentSortDir = sortDir;
+    } else {
+      currentSortDir = 'desc';
+    }
+    currentSort = sortField;
+    
+    visibleRows.sort((a, b) => {
+      let aVal, bVal;
+      
+      switch(sortField) {
+        case 'name':
+          aVal = a.dataset.name;
+          bVal = b.dataset.name;
+          break;
+        case 'stars':
+          aVal = parseInt(a.dataset.stars) || 0;
+          bVal = parseInt(b.dataset.stars) || 0;
+          break;
+        case 'forks':
+          aVal = parseInt(a.dataset.forks) || 0;
+          bVal = parseInt(b.dataset.forks) || 0;
+          break;
+        case 'updated':
+        default:
+          aVal = parseInt(a.dataset.updated) || 0;
+          bVal = parseInt(b.dataset.updated) || 0;
+          break;
+      }
+      
+      if (sortField === 'name') {
+        return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      } else {
+        return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+    });
+    
+    visibleRows.forEach(row => tbody.appendChild(row));
+  }
+  
+  // Event listeners
+  searchInput.addEventListener('input', filterAndSort);
+  languageFilter.addEventListener('change', filterAndSort);
+  sortFilter.addEventListener('change', () => {
+    currentSort = sortFilter.value;
+    currentSortDir = 'desc';
+    sortTable();
+  });
+  
+  // Table header sorting
+  document.querySelectorAll('#repos-table thead th[data-sort]').forEach(header => {
+    header.addEventListener('click', () => {
+      sortFilter.value = header.dataset.sort;
+      filterAndSort();
+    });
+  });
+  
+  // Initial filter
+  filterAndSort();
+});
+</script>
+
+<%- include('components/loader') %>
+</body>
+</html>

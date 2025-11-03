@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html class="light" lang="fi">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0b73da",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
+<div class="flex min-h-screen">
+  <%- include("components/sidebar") %>
+  <main class="flex-1 p-8">
+    <div class="flex flex-wrap justify-between gap-3 mb-8">
+      <div class="flex min-w-72 flex-col gap-2">
+        <h1 class="text-4xl font-black leading-tight tracking-[-0.033em] text-[#0d141c] dark:text-white">Licenses</h1>
+        <p class="text-base text-slate-500 dark:text-slate-400">Organisaation repo-kohtaiset lisenssit (arkistoidut ohitettu).</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">Analysoidut repositoryt</p>
+        <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary && summary.total) || 0 %></p>
+      </div>
+      <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">SPDX-lisenssi löytyi</p>
+        <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary && summary.withSpdx) || 0 %></p>
+      </div>
+      <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">Tuntematon/puuttuu</p>
+        <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary && summary.unknown) || 0 %></p>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">Haettu yhteensä</p>
+        <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary && summary.fetchedTotal) || 0 %></p>
+      </div>
+      <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">Arkistoidut ohitettu</p>
+        <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary && summary.archivedSkipped) || 0 %></p>
+      </div>
+      <div class="flex items-stretch gap-6">
+        <div class="flex-1 flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">Julkiset</p>
+          <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary && summary.analyzedPublic) || 0 %></p>
+        </div>
+        <div class="flex-1 flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium leading-normal text-[#0d141c] dark:text-slate-300">Yksityiset</p>
+          <p class="text-3xl font-bold leading-tight text-[#0d141c] dark:text-white"><%= (summary && summary.analyzedPrivate) || 0 %></p>
+        </div>
+      </div>
+    </div>
+    <% if (summary && summary.breakdown && summary.breakdown.length) { %>
+    <div class="rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 mb-8">
+      <h2 class="text-lg font-semibold mb-4">Yleisimmät lisenssit</h2>
+      <div class="flex flex-wrap gap-2">
+        <% summary.breakdown.forEach(function(b){ %>
+          <span class="px-3 py-1 rounded-full text-sm border border-slate-300 dark:border-slate-700"><%= b.spdx %> (<%= b.count %>)</span>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+    <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 overflow-x-auto">
+      <% if ((licenses||[]).length === 0) { %>
+        <p class="text-slate-500 dark:text-slate-400">Ei lisenssidataa.</p>
+      <% } else { %>
+        <table class="w-full text-left text-sm">
+          <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800">
+            <tr>
+              <th class="px-6 py-3">Repository</th>
+              <th class="px-6 py-3">License</th>
+              <th class="px-6 py-3">SPDX</th>
+              <th class="px-6 py-3">Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% licenses.forEach(function(item){ %>
+              <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <td class="px-6 py-4 font-medium"><a class="hover:text-primary" href="<%= item.repoUrl %>" target="_blank" rel="noopener"><%= item.fullName %></a></td>
+                <td class="px-6 py-4 text-slate-500"><%= item.licenseName || '-' %></td>
+                <td class="px-6 py-4 text-slate-500"><%= item.spdx || '-' %></td>
+                <td class="px-6 py-4">
+                  <% if (item.licenseLink) { %>
+                    <a class="text-primary hover:underline" href="<%= item.licenseLink %>" target="_blank" rel="noopener">LICENSE</a>
+                  <% } else { %>
+                    <span class="text-slate-400">-</span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </main>
+</div>
+<%- include('components/loader') %>
+</body>
+</html>
+
+

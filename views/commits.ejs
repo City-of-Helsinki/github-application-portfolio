@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html class="light" lang="fi">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0b73da",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <script>
+    function refreshData() {
+        const refreshBtn = document.getElementById("refresh-btn");
+        const refreshStatus = document.getElementById("refresh-status");
+        
+        if (refreshBtn) refreshBtn.classList.add("hidden");
+        if (refreshStatus) refreshStatus.classList.remove("hidden");
+        
+        const currentPath = window.location.pathname;
+        window.location.href = currentPath + "?refresh=true";
+    }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d141c] dark:text-white">
+<div class="flex min-h-screen">
+  <%- include("components/sidebar") %>
+  <main class="flex-1 overflow-y-auto">
+    <div class="p-8">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-4">
+          <span class="material-symbols-outlined text-4xl text-primary">history</span>
+          <div>
+            <h1 class="text-3xl font-bold text-[#0d141c] dark:text-white">Viimeisimmät commitit</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1">Repository-kohtaiset commit-tilastot</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="refresh-btn" onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors">
+            <span class="material-symbols-outlined text-sm">refresh</span>
+            Päivitä tiedot
+          </button>
+          <div id="refresh-status" class="hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500">
+            <span class="material-symbols-outlined text-sm animate-spin">sync</span>
+            Ladataan...
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <% if (typeof stats === 'undefined') { var stats = {}; } %>
+      <% if (typeof repositories === 'undefined') { var repositories = []; } %>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Repositoryt</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats && stats.totalRepos ? stats.totalRepos : (repositories ? repositories.length : 0) %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Yhteensä</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Repositoryt commitilla</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats && stats.reposWithCommits ? stats.reposWithCommits : 0 %></p>
+          <p class="text-sm font-medium text-green-600">Aktiiviset</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Repositoryt ilman committeja</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats && stats.reposWithoutCommits ? stats.reposWithoutCommits : 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Ei committeja</p>
+        </div>
+        <div class="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p class="text-base font-medium text-[#0d141c] dark:text-slate-300">Top committerit</p>
+          <p class="text-3xl font-bold text-[#0d141c] dark:text-white"><%= stats && stats.topCommitters ? stats.topCommitters.length : 0 %></p>
+          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Unikaaleja</p>
+        </div>
+      </div>
+
+      <!-- Top Committers -->
+      <% if (stats.topCommitters && stats.topCommitters.length > 0) { %>
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-8">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="material-symbols-outlined text-2xl text-primary">person</span>
+          <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Top committerit</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <% stats.topCommitters.forEach(function(committer, index) { %>
+          <div class="flex items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800">
+            <div class="flex items-center gap-3">
+              <span class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold bg-primary/10 text-primary">
+                <%= index + 1 %>
+              </span>
+              <span class="font-medium text-[#0d141c] dark:text-white"><%= committer.author %></span>
+            </div>
+            <span class="text-sm font-bold text-primary"><%= committer.count %></span>
+          </div>
+          <% }); %>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Recent Commits -->
+      <% if (stats.recentCommits && stats.recentCommits.length > 0) { %>
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-2xl text-primary">history</span>
+            <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Viimeisimmät commitit</h2>
+          </div>
+          <span class="text-sm text-slate-500 dark:text-slate-400"><%= stats.recentCommits.length %> commitia</span>
+        </div>
+        <div class="space-y-3">
+          <% stats.recentCommits.slice(0, 50).forEach(function(commit) { %>
+          <div class="flex items-start gap-4 p-4 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+            <div class="flex-shrink-0">
+              <% if (commit.authorAvatar) { %>
+              <img src="<%= commit.authorAvatar %>" alt="<%= commit.author %>" class="w-10 h-10 rounded-full">
+              <% } else { %>
+              <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <span class="material-symbols-outlined text-primary">person</span>
+              </div>
+              <% } %>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <% if (commit.authorUrl) { %>
+                <a href="<%= commit.authorUrl %>" target="_blank" rel="noopener" class="font-semibold text-[#0d141c] dark:text-white hover:text-primary">
+                  <%= commit.author %>
+                </a>
+                <% } else { %>
+                <span class="font-semibold text-[#0d141c] dark:text-white"><%= commit.author %></span>
+                <% } %>
+                <span class="text-sm text-slate-500 dark:text-slate-400">committed to</span>
+                <a href="<%= commit.repoUrl %>" target="_blank" rel="noopener" class="font-medium text-primary hover:underline">
+                  <%= commit.repo %>
+                </a>
+              </div>
+              <p class="text-sm text-[#0d141c] dark:text-slate-300 mb-2"><%= commit.message || 'No message' %></p>
+              <div class="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                <span><%= commit.date ? new Date(commit.date).toLocaleDateString('fi-FI') : 'Unknown date' %></span>
+                <% if (commit.url) { %>
+                <a href="<%= commit.url %>" target="_blank" rel="noopener" class="hover:text-primary">
+                  <span class="font-mono"><%= commit.sha ? commit.sha.substring(0, 7) : '' %></span>
+                </a>
+                <% } %>
+              </div>
+            </div>
+          </div>
+          <% }); %>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Repositories with Commits -->
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-2xl text-primary">inventory_2</span>
+            <h2 class="text-xl font-semibold text-[#0d141c] dark:text-white">Repositoryt viimeisimmillä commiteilla</h2>
+          </div>
+          <span class="text-sm text-slate-500 dark:text-slate-400"><%= repositories.length %> repositoryä</span>
+        </div>
+
+        <% if (repositories.length === 0) { %>
+        <div class="text-center py-12">
+          <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-600">inbox</span>
+          <h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400 mt-4">Ei repositoryjä</h3>
+          <p class="text-slate-400 dark:text-slate-500 mt-2">Yhtään repositoryä ei löytynyt.</p>
+        </div>
+        <% } else { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800">
+              <tr>
+                <th class="px-6 py-3" scope="col">Repository</th>
+                <th class="px-6 py-3" scope="col">Viimeisin commit</th>
+                <th class="px-6 py-3" scope="col">Committer</th>
+                <th class="px-6 py-3" scope="col">Päivämäärä</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% repositories.forEach(function(repo) { %>
+              <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <th class="px-6 py-4 font-medium text-[#0d141c] dark:text-white whitespace-nowrap" scope="row">
+                  <a class="hover:text-primary flex items-center gap-2" href="<%= repo.html_url %>" target="_blank" rel="noopener">
+                    <i class="fab fa-github"></i>
+                    <%= repo.name %>
+                  </a>
+                </th>
+                <td class="px-6 py-4">
+                  <% if (repo.latest_commit && repo.latest_commit.message) { %>
+                  <div class="max-w-md">
+                    <a href="<%= repo.latest_commit.url %>" target="_blank" rel="noopener" class="text-sm text-[#0d141c] dark:text-slate-300 hover:text-primary truncate block">
+                      <%= repo.latest_commit.message.length > 60 ? repo.latest_commit.message.substring(0, 60) + '...' : repo.latest_commit.message %>
+                    </a>
+                    <% if (repo.latest_commit.sha) { %>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-mono"><%= repo.latest_commit.sha.substring(0, 7) %></span>
+                    <% } %>
+                  </div>
+                  <% } else { %>
+                  <span class="text-slate-400">-</span>
+                  <% } %>
+                </td>
+                <td class="px-6 py-4">
+                  <% if (repo.latest_commit && repo.latest_commit.author) { %>
+                  <% if (repo.latest_commit.authorUrl) { %>
+                  <a href="<%= repo.latest_commit.authorUrl %>" target="_blank" rel="noopener" class="text-sm text-[#0d141c] dark:text-slate-300 hover:text-primary">
+                    <%= repo.latest_commit.author %>
+                  </a>
+                  <% } else { %>
+                  <span class="text-sm text-[#0d141c] dark:text-slate-300"><%= repo.latest_commit.author %></span>
+                  <% } %>
+                  <% } else { %>
+                  <span class="text-slate-400">-</span>
+                  <% } %>
+                </td>
+                <td class="px-6 py-4 text-slate-500 dark:text-slate-400">
+                  <% if (repo.latest_commit && repo.latest_commit.date) { %>
+                  <%= new Date(repo.latest_commit.date).toLocaleDateString('fi-FI') %>
+                  <% } else { %>
+                  <span class="text-slate-400">-</span>
+                  <% } %>
+                </td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+<%- include('components/loader') %>
+</body>
+</html>
