@@ -16,7 +16,7 @@
     "lint": "echo \"Linting not configured\" && exit 0",
     "build": "echo \"No build step required\" && exit 0",
     "deploy": "echo \"Deployment script not configured\" && exit 0",
-    "rate-limit": "curl -s http://localhost:3000/api/rate-limit | node -e \"console.log(JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf8')), null, 2))\"",
+    "rate-limit": "node scripts/show-rate-limit.js",
     "health": "curl -s http://localhost:3000/api/rate-limit | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log('Rate limit at limit:', data.isAtLimit); console.log('Percentage used:', data.percentageUsed + '%');\"",
     "rate-limit-status": "curl -s http://localhost:3000/api/rate-limit/status | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log('Rate limiting enabled:', data.enabled); console.log('Debug mode:', data.debug); console.log('Remaining requests:', data.status.remaining);\"",
     "rate-limit-disable": "curl -X POST -H \"Content-Type: application/json\" -d '{\"enabled\": false}' http://localhost:3000/api/rate-limit/toggle | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(data.message);\"",
