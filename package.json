@@ -64,7 +64,7 @@
   },
   "homepage": "https://github.com/juhasuv/github-application-portfolio#readme",
   "dependencies": {
-    "@octokit/plugin-throttling": "^8.2.0",
+    "@octokit/plugin-throttling": "^11.0.3",
     "@octokit/rest": "^22.0.1",
     "axios": "^1.6.8",
     "csv-parser": "^3.2.0",
