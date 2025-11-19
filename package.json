@@ -4,7 +4,7 @@
   "description": "Modern GitHub application portfolio with rate limiting, security monitoring, and beautiful UI. Fetches and displays repository information from GitHub organizations with advanced filtering and analytics.",
   "main": "server.js",
   "engines": {
-    "node": ">=16.0.0",
+    "node": ">=18.0.0",
     "npm": ">=8.0.0"
   },
   "scripts": {
@@ -16,11 +16,11 @@
     "lint": "echo \"Linting not configured\" && exit 0",
     "build": "echo \"No build step required\" && exit 0",
     "deploy": "echo \"Deployment script not configured\" && exit 0",
-    "rate-limit": "curl -s http://localhost:3000/api/rate-limit | node -e \"console.log(JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf8')), null, 2))\"",
+    "rate-limit": "node scripts/show-rate-limit.js",
     "health": "curl -s http://localhost:3000/api/rate-limit | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log('Rate limit at limit:', data.isAtLimit); console.log('Percentage used:', data.percentageUsed + '%');\"",
     "rate-limit-status": "curl -s http://localhost:3000/api/rate-limit/status | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log('Rate limiting enabled:', data.enabled); console.log('Debug mode:', data.debug); console.log('Remaining requests:', data.status.remaining);\"",
-    "rate-limit-disable": "curl -X POST http://localhost:3000/api/rate-limit/toggle | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(data.message);\"",
-    "rate-limit-enable": "curl -X POST http://localhost:3000/api/rate-limit/toggle | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(data.message);\"",
+    "rate-limit-disable": "curl -X POST -H \"Content-Type: application/json\" -d '{\"enabled\": false}' http://localhost:3000/api/rate-limit/toggle | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(data.message);\"",
+    "rate-limit-enable": "curl -X POST -H \"Content-Type: application/json\" -d '{\"enabled\": true}' http://localhost:3000/api/rate-limit/toggle | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(data.message);\"",
     "rate-limit-debug": "curl -X POST http://localhost:3000/api/rate-limit/debug/toggle | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log(data.message);\"",
     "cache": "curl -s http://localhost:3000/api/cache | node -e \"const data=JSON.parse(require('fs').readFileSync(0, 'utf8')); console.log('Cache hit rate:', data.hitRate); console.log('Cache size:', data.size, 'entries'); console.log('Memory usage:', data.memoryUsageMB + 'MB');\"",
     "cache-clear": "curl -X POST http://localhost:3000/api/cache/clear",
@@ -66,7 +66,7 @@
   "dependencies": {
     "@octokit/plugin-throttling": "^8.2.0",
     "@octokit/rest": "^22.0.1",
-    "axios": "^1.13.2",
+    "axios": "^1.6.8",
     "csv-parser": "^3.2.0",
     "dotenv": "^17.2.3",
     "ejs": "^3.1.9",
